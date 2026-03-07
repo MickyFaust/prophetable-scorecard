@@ -1,0 +1,149 @@
+{
+  "title": "PROPHETABLE — OFFICIAL SCORECARD",
+  "subtitle": "Launch + Week 1 Full Results",
+  "dateRange": "Feb 28 – Mar 7, 2026",
+  "days": [
+    {
+      "id": "sat_feb28_elite",
+      "date": "SATURDAY, Feb 28",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "1", "matchup": "UMBC @ UMass Lowell", "pick": "UNDER 148.5", "units": 1.5, "emoji": "🌊", "odds": -106, "result": "WIN", "pnl": 1.42, "note": "" },
+        { "id": "2", "matchup": "Oral Roberts @ Kansas City", "pick": "UNDER 149.5", "units": 1.25, "emoji": "💧", "odds": -108, "result": "LOSS", "pnl": -1.25, "note": "" },
+        { "id": "3", "matchup": "Jackson St @ Texas Southern", "pick": "UNDER 152.5", "units": 1.0, "emoji": "🔍", "odds": -110, "result": "WIN", "pnl": 0.91, "note": "" }
+      ]
+    },
+    {
+      "id": "sun_mar1_elite",
+      "date": "SUNDAY, Mar 1",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "4", "matchup": "Southern Illinois @ Evansville", "pick": "SIU -8.5", "units": 2.0, "emoji": "🐋", "odds": -110, "result": "WIN", "pnl": 1.82, "note": "" },
+        { "id": "5", "matchup": "Tulane @ South Florida", "pick": "USF -14.5", "units": 2.0, "emoji": "🐋", "odds": -105, "result": "WIN", "pnl": 1.9, "note": "" },
+        { "id": "6", "matchup": "Murray St @ Bradley", "pick": "Bradley -4.5", "units": 2.0, "emoji": "🐋", "odds": -105, "result": "WIN", "pnl": 1.9, "note": "" },
+        { "id": "7", "matchup": "Michigan St @ Indiana", "pick": "MSU -2.5", "units": 1.75, "emoji": "🦈", "odds": -105, "result": "WIN", "pnl": 1.67, "note": "" }
+      ]
+    },
+    {
+      "id": "mon_mar2_elite",
+      "date": "MONDAY, Mar 2",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "8", "matchup": "McNeese @ Nicholls St", "pick": "UNDER 144.5", "units": 1.75, "emoji": "🦈", "odds": -110, "result": "WIN", "pnl": 1.59, "note": "" },
+        { "id": "9", "matchup": "SE Louisiana @ New Orleans", "pick": "UNDER 144.0", "units": 1.5, "emoji": "🌊", "odds": -110, "result": "LOSS", "pnl": -1.5, "note": "" }
+      ]
+    },
+    {
+      "id": "mon_mar2_max",
+      "date": "MONDAY, Mar 2",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "10", "matchup": "Iowa St @ Arizona", "pick": "Arizona -7.5", "units": 1.25, "emoji": "💧", "odds": -110, "result": "WIN", "pnl": 1.14, "note": "" },
+        { "id": "11", "matchup": "NW St @ UTRGV", "pick": "UNDER 138.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "WIN", "pnl": 1.19, "note": "" }
+      ]
+    },
+    {
+      "id": "tue_mar3_elite",
+      "date": "TUESDAY, Mar 3",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "12", "matchup": "UMBC @ NJIT", "pick": "UNDER 140.5", "units": 1.75, "emoji": "🦈", "odds": -110, "result": "LOSS", "pnl": -1.75, "note": "UMBC 91, NJIT 52 (Total: 143)" },
+        { "id": "13", "matchup": "Army @ Bucknell", "pick": "OVER 145.5", "units": 1.5, "emoji": "🌊", "odds": -110, "result": "LOSS", "pnl": -1.5, "note": "Army 55, Bucknell 65 (Total: 120)" },
+        { "id": "14", "matchup": "Drexel @ Hofstra", "pick": "UNDER 133.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "WIN", "pnl": 1.19, "note": "Drexel 51, Hofstra 62 (Total: 113)" }
+      ]
+    },
+    {
+      "id": "tue_mar3_max",
+      "date": "TUESDAY, Mar 3",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "15", "matchup": "Bryant @ New Hampshire", "pick": "UNDER 135.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "LOSS", "pnl": -1.25, "note": "Bryant 83, NH 88 OT (Total: 171)" },
+        { "id": "16", "matchup": "Mississippi St @ Florida", "pick": "OVER 160.5", "units": 1.25, "emoji": "💧", "odds": -110, "result": "WIN", "pnl": 1.14, "note": "MSU 74, Florida 108 (Total: 182)" }
+      ]
+    },
+    {
+      "id": "wed_mar4_elite",
+      "date": "WEDNESDAY, Mar 4",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "17", "matchup": "Minnesota @ Indiana", "pick": "Minnesota +7.0", "units": 2.0, "emoji": "🐋", "odds": -105, "result": "LOSS", "pnl": -2.0, "note": "Minnesota 47, Indiana 77" },
+        { "id": "18", "matchup": "Wagner @ Central Connecticut St", "pick": "Wagner +5.5", "units": 1.5, "emoji": "🌊", "odds": -105, "result": "WIN", "pnl": 1.43, "note": "Wagner 70, CCSU 60" },
+        { "id": "19", "matchup": "Youngstown St @ Robert Morris", "pick": "Robert Morris -4.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "WIN", "pnl": 1.19, "note": "RMU 68, YSU 53" }
+      ]
+    },
+    {
+      "id": "wed_mar4_max",
+      "date": "WEDNESDAY, Mar 4",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "20", "matchup": "Atlanta Hawks @ Milwaukee Bucks", "pick": "UNDER 233.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "LOSS", "pnl": -1.25, "note": "Hawks 131, Bucks 113 (Total: 244)" },
+        { "id": "21", "matchup": "Cleveland St @ Wright St", "pick": "OVER 162.5", "units": 1.25, "emoji": "💧", "odds": -108, "result": "LOSS", "pnl": -1.25, "note": "Wright St 90, Cleveland St 61 (Total: 151)" }
+      ]
+    },
+    {
+      "id": "thu_mar5_elite",
+      "date": "THURSDAY, Mar 5",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "22", "matchup": "Drake @ Southern Illinois", "pick": "SIU -5.0", "units": 1.5, "emoji": "🌊", "odds": -105, "result": "LOSS", "pnl": -1.5, "note": "Drake 67, SIU 63" },
+        { "id": "23", "matchup": "South Florida @ Memphis", "pick": "South Florida -5.5", "units": 1.5, "emoji": "🌊", "odds": -102, "result": "WIN", "pnl": 1.47, "note": "USF 96, Memphis 89" },
+        { "id": "24", "matchup": "Evansville @ Northern Iowa", "pick": "Northern Iowa -15.5", "units": 1.25, "emoji": "💧", "odds": -105, "result": "LOSS", "pnl": -1.25, "note": "UNI 68, Evansville 59" }
+      ]
+    },
+    {
+      "id": "thu_mar5_max",
+      "date": "THURSDAY, Mar 5",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "25", "matchup": "SC State @ NC Central", "pick": "OVER 145.5", "units": 1.0, "emoji": "🔍", "odds": -108, "result": "LOSS", "pnl": -1.0, "note": "SC State 80, NCCU 64 (Total: 144)" },
+        { "id": "26", "matchup": "Howard @ Norfolk St", "pick": "OVER 145.5", "units": 1.0, "emoji": "🔍", "odds": -110, "result": "WIN", "pnl": 0.91, "note": "Howard 84, Norfolk St 76 (Total: 160)" }
+      ]
+    },
+    {
+      "id": "thu_mar5_sentinel",
+      "date": "THURSDAY, Mar 5",
+      "tier": "SENTINEL",
+      "picks": [
+        { "id": "27", "matchup": "Detroit @ San Antonio", "pick": "Vassell Reb OVER 3.5", "units": 1.5, "emoji": "🌊", "odds": -110, "result": "LOSS", "pnl": -1.5, "note": "Spurs 121, Pistons 106. Vassell: 8 pts, 3 reb." }
+      ]
+    },
+    {
+      "id": "fri_mar6_elite",
+      "date": "FRIDAY, Mar 6",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "28", "matchup": "Stetson @ Austin Peay", "pick": "Stetson +10.5", "units": 1.5, "emoji": "🌊", "odds": -105, "result": "WIN", "pnl": 1.43, "note": "Austin Peay 69, Stetson 60" },
+        { "id": "29", "matchup": "Charleston So. @ Winthrop", "pick": "Charleston So. +4.5", "units": 1.25, "emoji": "💧", "odds": -110, "result": "LOSS", "pnl": -1.25, "note": "Winthrop 86, CSU 81" },
+        { "id": "30", "matchup": "Bowling Green @ Eastern Michigan", "pick": "Eastern Michigan +3.5", "units": 1.25, "emoji": "💧", "odds": -108, "result": "LOSS", "pnl": -1.25, "note": "BG 77, EMU 69" }
+      ]
+    },
+    {
+      "id": "fri_mar6_max",
+      "date": "FRIDAY, Mar 6",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "31", "matchup": "Dallas Mavericks @ Boston Celtics", "pick": "UNDER 224.5", "units": 1.0, "emoji": "🔍", "odds": -105, "result": "WIN", "pnl": 0.95, "note": "Celtics 120, Mavs 100 (Total: 220)" },
+        { "id": "32", "matchup": "Columbia @ Harvard", "pick": "UNDER 134.0", "units": 1.0, "emoji": "🔍", "odds": -110, "result": "LOSS", "pnl": -1.0, "note": "Harvard 81, Columbia 71 (Total: 152)" }
+      ]
+    },
+    {
+      "id": "sat_mar7_elite",
+      "date": "SATURDAY, Mar 7",
+      "tier": "PROPHET ELITE",
+      "picks": [
+        { "id": "33", "matchup": "Arizona St @ Iowa State", "pick": "Arizona St +15.5", "units": 1.5, "emoji": "🌊", "odds": -105, "result": "PENDING", "pnl": 0, "note": "" },
+        { "id": "34", "matchup": "Sam Houston St @ Liberty", "pick": "Sam Houston +4.5", "units": 1.5, "emoji": "🌊", "odds": -110, "result": "PENDING", "pnl": 0, "note": "" },
+        { "id": "35", "matchup": "Georgia @ Mississippi St", "pick": "Georgia -5.5", "units": 1.5, "emoji": "🌊", "odds": -110, "result": "PENDING", "pnl": 0, "note": "" }
+      ]
+    },
+    {
+      "id": "sat_mar7_max",
+      "date": "SATURDAY, Mar 7",
+      "tier": "MAX PROPHET",
+      "picks": [
+        { "id": "36", "matchup": "Philadelphia 76ers @ Atlanta Hawks", "pick": "UNDER 233.5", "units": 1.25, "emoji": "💧", "odds": -110, "result": "PENDING", "pnl": 0, "note": "" },
+        { "id": "37", "matchup": "UConn @ Marquette", "pick": "UNDER 143.5", "units": 1.0, "emoji": "🔍", "odds": -105, "result": "PENDING", "pnl": 0, "note": "" }
+      ]
+    }
+  ]
+}

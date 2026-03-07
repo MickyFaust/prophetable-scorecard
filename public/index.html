@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PROPHETABLE — Official Scorecard</title>
+  <meta name="description" content="Prophetable Official Scorecard - Honest & Unfiltered Sports Picks">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: rgba(15,23,42,0.8); --border: rgba(148,163,184,0.1);
+      --text: #e2e8f0; --text-dim: #94a3b8; --text-muted: #64748b; --text-faint: #475569;
+      --blue: #2563eb; --purple: #a855f7; --gold: #eab308; --green: #22c55e; --red: #ef4444;
+      --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      --display: 'Outfit', sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.5; min-height: 100vh; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); border-bottom: 1px solid var(--border); padding: 24px 20px; }
+    .header-inner { max-width: 920px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+    .logo { font-family: var(--display); font-size: 28px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #60a5fa, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .subtitle { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
+
+    .container { max-width: 920px; margin: 0 auto; padding: 24px 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; animation: slideIn 0.4s ease; backdrop-filter: blur(10px); margin-bottom: 16px; }
+    .card:hover { border-color: rgba(148,163,184,0.18); }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+    .stat-card { background: rgba(15,23,42,0.9); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-label { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-family: var(--display); font-size: 28px; font-weight: 800; color: #f8fafc; }
+    .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .tier-box { padding: 16px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+    .tier-name { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .tier-record { font-family: var(--display); font-size: 20px; font-weight: 800; }
+    .tier-units { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(148,163,184,0.15); background: transparent; color: var(--text-dim); cursor: pointer; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s; }
+    .filter-btn:hover { border-color: rgba(148,163,184,0.4); color: var(--text); }
+    .filter-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+
+    .day-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(148,163,184,0.06); }
+    .day-title { font-family: var(--display); font-size: 14px; font-weight: 700; color: #f8fafc; }
+    .tier-badge { padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+    .day-stats { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+
+    .pick-row { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(148,163,184,0.04); transition: background 0.2s; }
+    .pick-row:hover { background: rgba(148,163,184,0.04); }
+    .pick-row:last-child { border-bottom: none; }
+    .pick-matchup { font-size: 13px; font-weight: 500; color: #cbd5e1; }
+    .pick-line { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .pick-note { font-size: 10px; color: var(--text-faint); margin-top: 3px; font-style: italic; }
+    .pick-units { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+    .pick-odds { font-size: 11px; color: var(--text-muted); }
+    .result-badge { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 6px; }
+    .result-win { background: rgba(34,197,94,0.15); color: var(--green); }
+    .result-loss { background: rgba(239,68,68,0.15); color: var(--red); }
+    .result-pending { background: rgba(234,179,8,0.15); color: var(--gold); }
+    .result-push { background: rgba(148,163,184,0.15); color: var(--text-dim); }
+    .pick-pnl { font-size: 13px; font-weight: 700; text-align: right; min-width: 60px; }
+
+    .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.2); background: var(--surface); color: var(--text); cursor: pointer; font-family: var(--mono); font-size: 12px; transition: all 0.2s; }
+    .btn:hover { background: rgba(30,41,59,0.9); border-color: rgba(148,163,184,0.4); }
+    .btn-primary { background: var(--blue); border-color: var(--blue); color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #f87171; }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-nav { padding: 6px 14px; }
+    .btn-nav.active { background: var(--blue); border-color: var(--blue); }
+
+    input, select, textarea { background: rgba(15,23,42,0.9); border: 1px solid rgba(148,163,184,0.2); border-radius: 6px; padding: 8px 12px; color: var(--text); font-family: var(--mono); font-size: 13px; width: 100%; }
+    input:focus, select:focus { outline: none; border-color: var(--blue); }
+    label { font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 2px; }
+
+    .admin-pick { padding: 12px 16px; border-bottom: 1px solid rgba(148,163,184,0.04); }
+    .admin-pick-row { display: flex; justify-content: space-between; align-items: center; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .edit-full { grid-column: 1 / -1; }
+    .edit-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
+
+    .footer { text-align: center; padding: 32px 0; border-top: 1px solid rgba(148,163,184,0.06); margin-top: 20px; }
+    .footer-main { font-size: 11px; color: var(--text-faint); letter-spacing: 2px; text-transform: uppercase; }
+    .footer-sub { font-size: 10px; color: #334155; margin-top: 8px; }
+
+    .login-box { padding: 40px; text-align: center; max-width: 400px; margin: 60px auto; }
+    .login-icon { font-size: 32px; margin-bottom: 16px; }
+    .login-title { font-family: var(--display); font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+
+    .saving-indicator { font-size: 12px; color: var(--gold); animation: pulse 1s infinite; }
+    .add-day-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .add-day-row input { flex: 1; min-width: 200px; }
+
+    @media (max-width: 640px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .tier-grid { grid-template-columns: 1fr; }
+      .pick-row { grid-template-columns: 1fr; gap: 6px; }
+      .header-inner { flex-direction: column; }
+      .edit-grid { grid-template-columns: 1fr; }
+      .day-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    // ─── STATE ───
+    let state = {
+      data: null,
+      view: "public",
+      isAdmin: false,
+      adminPass: "",
+      editingPick: null,
+      editForm: {},
+      filterTier: "ALL",
+      saving: false,
+      loading: true,
+      newDate: "",
+      newTier: "PROPHET ELITE"
+    };
+
+    const TIER_COLORS = {
+      "PROPHET ELITE": { bg: "rgba(37,99,235,0.12)", border: "#2563eb", text: "#60a5fa" },
+      "MAX PROPHET": { bg: "rgba(168,85,247,0.12)", border: "#a855f7", text: "#c084fc" },
+      "SENTINEL": { bg: "rgba(234,179,8,0.12)", border: "#eab308", text: "#fbbf24" }
+    };
+
+    // ─── API ───
+    async function loadData() {
+      try {
+        const res = await fetch("/api/scorecard");
+        state.data = await res.json();
+      } catch { state.data = { days: [] }; }
+      state.loading = false;
+      render();
+    }
+
+    async function saveData() {
+      state.saving = true;
+      render();
+      try {
+        await fetch("/api/scorecard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + state.adminPass },
+          body: JSON.stringify(state.data)
+        });
+      } catch (e) { console.error("Save failed:", e); }
+      state.saving = false;
+      render();
+    }
+
+    async function tryLogin() {
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: state.adminPass })
+        });
+        if (res.ok) { state.isAdmin = true; }
+      } catch {}
+      render();
+    }
+
+    function calcPnl(units, odds, result) {
+      if (result === "PENDING" || result === "PUSH") return 0;
+      if (result === "LOSS") return -units;
+      if (result === "WIN") {
+        return odds < 0 ? +(units * (100 / Math.abs(odds))).toFixed(2) : +(units * (odds / 100)).toFixed(2);
+      }
+      return 0;
+    }
+
+    // ─── ACTIONS ───
+    function updatePick(dayId, pickId, updates) {
+      state.data.days = state.data.days.map(d => {
+        if (d.id !== dayId) return d;
+        return { ...d, picks: d.picks.map(p => {
+          if (p.id !== pickId) return p;
+          const updated = { ...p, ...updates };
+          updated.pnl = calcPnl(updated.units, updated.odds, updated.result);
+          return updated;
+        })};
+      });
+      state.editingPick = null;
+      saveData();
+    }
+
+    function addPick(dayId) {
+      const allIds = state.data.days.flatMap(d => d.picks.map(p => Number(p.id)));
+      const newId = String(Math.max(0, ...allIds) + 1);
+      state.data.days = state.data.days.map(d => {
+        if (d.id !== dayId) return d;
+        return { ...d, picks: [...d.picks, { id: newId, matchup: "New Matchup", pick: "Pick TBD", units: 1.0, emoji: "🔍", odds: -110, result: "PENDING", pnl: 0, note: "" }] };
+      });
+      saveData();
+    }
+
+    function deletePick(dayId, pickId) {
+      if (!confirm("Delete this pick?")) return;
+      state.data.days = state.data.days.map(d => {
+        if (d.id !== dayId) return d;
+        return { ...d, picks: d.picks.filter(p => p.id !== pickId) };
+      });
+      saveData();
+    }
+
+    function addDay() {
+      if (!state.newDate) return;
+      const id = state.newDate.replace(/[^a-z0-9]/gi, "_").toLowerCase() + "_" + state.newTier.replace(/\s/g, "_").toLowerCase();
+      state.data.days.push({ id, date: state.newDate, tier: state.newTier, picks: [] });
+      state.newDate = "";
+      saveData();
+    }
+
+    function startEdit(pick) {
+      state.editingPick = pick.id;
+      state.editForm = { ...pick };
+      render();
+    }
+
+    // ─── RENDER HELPERS ───
+    function h(tag, attrs, ...children) {
+      const el = document.createElement(tag);
+      if (attrs) Object.entries(attrs).forEach(([k, v]) => {
+        if (k === "style" && typeof v === "object") Object.assign(el.style, v);
+        else if (k.startsWith("on")) el.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (k === "className") el.className = v;
+        else if (k === "innerHTML") el.innerHTML = v;
+        else el.setAttribute(k, v);
+      });
+      children.flat(Infinity).forEach(c => {
+        if (c == null) return;
+        el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      });
+      return el;
+    }
+
+    // ─── RENDER ───
+    function render() {
+      const app = document.getElementById("app");
+      app.innerHTML = "";
+
+      // Header
+      const header = h("div", { className: "header" },
+        h("div", { className: "header-inner" },
+          h("div", null,
+            h("div", { className: "logo" }, "🐳 PROPHETABLE"),
+            h("div", { className: "subtitle" }, state.data ? `${state.data.subtitle || ""} · ${state.data.dateRange || ""}` : "Loading...")
+          ),
+          h("div", { style: { display: "flex", gap: "8px" } },
+            h("button", { className: `btn btn-nav ${state.view === "public" ? "active" : ""}`, onClick: () => { state.view = "public"; render(); } }, "Scorecard"),
+            h("button", { className: `btn btn-nav ${state.view === "admin" ? "active" : ""}`, onClick: () => { state.view = "admin"; render(); }, style: state.view === "admin" ? { background: "#7c3aed", borderColor: "#7c3aed" } : {} }, "Admin")
+          )
+        )
+      );
+      app.appendChild(header);
+
+      const container = h("div", { className: "container" });
+      app.appendChild(container);
+
+      if (state.loading) {
+        container.appendChild(h("div", { style: { textAlign: "center", padding: "60px", color: "#60a5fa", animation: "pulse 1.5s infinite" } }, "Loading scorecard..."));
+        return;
+      }
+
+      if (state.view === "admin" && !state.isAdmin) {
+        renderLogin(container);
+      } else if (state.view === "admin" && state.isAdmin) {
+        renderAdmin(container);
+      } else {
+        renderPublic(container);
+      }
+    }
+
+    function renderLogin(container) {
+      const box = h("div", { className: "card login-box" },
+        h("div", { className: "login-icon" }, "🔒"),
+        h("div", { className: "login-title" }, "Admin Access"),
+        h("input", { type: "password", placeholder: "Enter password", value: state.adminPass, style: { marginBottom: "12px", textAlign: "center" },
+          onInput: (e) => { state.adminPass = e.target.value; },
+          onKeydown: (e) => { if (e.key === "Enter") tryLogin(); }
+        }),
+        h("button", { className: "btn btn-primary", style: { width: "100%" }, onClick: tryLogin }, "Enter")
+      );
+      container.appendChild(box);
+    }
+
+    function renderPublic(container) {
+      const allPicks = state.data.days.flatMap(d => d.picks);
+      const confirmed = allPicks.filter(p => p.result !== "PENDING");
+      const wins = confirmed.filter(p => p.result === "WIN").length;
+      const losses = confirmed.filter(p => p.result === "LOSS").length;
+      const totalPnl = confirmed.reduce((s, p) => s + p.pnl, 0);
+      const winRate = confirmed.length > 0 ? ((wins / confirmed.length) * 100).toFixed(1) : "0.0";
+      const pending = allPicks.filter(p => p.result === "PENDING").length;
+
+      // Stats
+      const stats = [
+        { label: "Record", value: `${wins}-${losses}`, sub: pending > 0 ? `${pending} pending` : "", color: "#2563eb" },
+        { label: "Units", value: `${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}u`, sub: "", color: totalPnl >= 0 ? "#22c55e" : "#ef4444" },
+        { label: "Win Rate", value: `${winRate}%`, sub: "", color: "#a855f7" },
+        { label: "Plays", value: String(allPicks.length), sub: "", color: "#eab308" }
+      ];
+
+      const grid = h("div", { className: "stat-grid" });
+      stats.forEach(s => {
+        grid.appendChild(h("div", { className: "stat-card", style: { borderTop: `3px solid ${s.color}` } },
+          h("div", { className: "stat-label" }, s.label),
+          h("div", { className: "stat-value", style: s.label === "Units" ? { color: s.color } : {} }, s.value),
+          s.sub ? h("div", { className: "stat-sub" }, s.sub) : h("span")
+        ));
+      });
+      container.appendChild(grid);
+
+      // Tier Breakdown
+      const tiers = ["PROPHET ELITE", "MAX PROPHET", "SENTINEL"].map(t => {
+        const picks = state.data.days.filter(d => d.tier === t).flatMap(d => d.picks).filter(p => p.result !== "PENDING");
+        return { name: t, w: picks.filter(p => p.result === "WIN").length, l: picks.filter(p => p.result === "LOSS").length, u: picks.reduce((s, p) => s + p.pnl, 0) };
+      });
+      const tierColors = { "PROPHET ELITE": "#2563eb", "MAX PROPHET": "#a855f7", "SENTINEL": "#eab308" };
+
+      const tierCard = h("div", { className: "card", style: { padding: "20px", marginBottom: "28px" } },
+        h("div", { style: { fontFamily: "var(--display)", fontSize: "14px", fontWeight: "700", color: "var(--text-dim)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "16px" } }, "Tier Breakdown"),
+        h("div", { className: "tier-grid" },
+          ...tiers.map(t => h("div", { className: "tier-box", style: { borderLeft: `3px solid ${tierColors[t.name]}` } },
+            h("div", { className: "tier-name", style: { color: tierColors[t.name] } }, t.name),
+            h("div", { className: "tier-record" }, `${t.w}-${t.l}`),
+            h("div", { className: "tier-units", style: { color: t.u >= 0 ? "var(--green)" : "var(--red)" } }, `${t.u >= 0 ? "+" : ""}${t.u.toFixed(2)}u`)
+          ))
+        )
+      );
+      container.appendChild(tierCard);
+
+      // Filters
+      const filterBar = h("div", { className: "filter-bar" });
+      ["ALL", "PROPHET ELITE", "MAX PROPHET", "SENTINEL"].forEach(f => {
+        filterBar.appendChild(h("button", {
+          className: `filter-btn ${state.filterTier === f ? "active" : ""}`,
+          onClick: () => { state.filterTier = f; render(); }
+        }, f));
+      });
+      container.appendChild(filterBar);
+
+      // Days
+      const filteredDays = state.filterTier === "ALL" ? state.data.days : state.data.days.filter(d => d.tier === state.filterTier);
+      filteredDays.forEach((day, i) => {
+        const tc = TIER_COLORS[day.tier] || TIER_COLORS["PROPHET ELITE"];
+        const dayW = day.picks.filter(p => p.result === "WIN").length;
+        const dayL = day.picks.filter(p => p.result === "LOSS").length;
+        const dayPnl = day.picks.reduce((s, p) => s + p.pnl, 0);
+        const hasPending = day.picks.some(p => p.result === "PENDING");
+
+        const card = h("div", { className: "card", style: { borderLeft: `3px solid ${tc.border}`, animationDelay: `${i * 0.05}s` } });
+        const header = h("div", { className: "day-header" },
+          h("div", { style: { display: "flex", alignItems: "center", gap: "12px" } },
+            h("span", { className: "day-title" }, `📅 ${day.date}`),
+            h("span", { className: "tier-badge", style: { background: tc.bg, color: tc.text, border: `1px solid ${tc.border}33` } }, day.tier)
+          ),
+          h("div", { className: "day-stats" },
+            !hasPending ? h("span", { style: { fontWeight: "600" } }, `${dayW}-${dayL}`) : h("span"),
+            !hasPending ? h("span", { style: { color: dayPnl >= 0 ? "var(--green)" : "var(--red)", fontWeight: "700" } }, `${dayPnl >= 0 ? "+" : ""}${dayPnl.toFixed(2)}u`) : h("span", { style: { color: "var(--gold)", fontSize: "11px" } }, "⏳ PENDING")
+          )
+        );
+        card.appendChild(header);
+
+        day.picks.forEach(pick => {
+          const resultClass = pick.result === "WIN" ? "result-win" : pick.result === "LOSS" ? "result-loss" : pick.result === "PUSH" ? "result-push" : "result-pending";
+          const resultIcon = pick.result === "WIN" ? "✅" : pick.result === "LOSS" ? "❌" : pick.result === "PUSH" ? "➖" : "⏳";
+          const pnlColor = pick.pnl > 0 ? "var(--green)" : pick.pnl < 0 ? "var(--red)" : "var(--text-muted)";
+
+          const row = h("div", { className: "pick-row" },
+            h("div", null,
+              h("div", { className: "pick-matchup" }, pick.matchup),
+              h("div", { className: "pick-line" }, pick.pick),
+              pick.note ? h("div", { className: "pick-note" }, pick.note) : null
+            ),
+            h("div", { className: "pick-units" }, `${pick.units}u ${pick.emoji}`),
+            h("div", { className: "pick-odds" }, pick.odds > 0 ? `+${pick.odds}` : String(pick.odds)),
+            h("span", { className: `result-badge ${resultClass}` }, `${resultIcon} ${pick.result}`),
+            h("div", { className: "pick-pnl", style: { color: pnlColor } },
+              pick.result !== "PENDING" ? `${pick.pnl > 0 ? "+" : ""}${pick.pnl.toFixed(2)}u` : "—")
+          );
+          card.appendChild(row);
+        });
+        container.appendChild(card);
+      });
+
+      // Footer
+      container.appendChild(h("div", { className: "footer" },
+        h("div", { className: "footer-main" }, "PROPHETABLE · PROPHETABLE.TV · Honest & Unfiltered"),
+        h("div", { className: "footer-sub" }, "All P&L calculated on exact unit basis at stated odds with juice accounted")
+      ));
+    }
+
+    function renderAdmin(container) {
+      // Header
+      const adminHeader = h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" } },
+        h("div", { style: { fontFamily: "var(--display)", fontSize: "22px", fontWeight: "800" } }, "🔧 Admin Panel"),
+        state.saving ? h("span", { className: "saving-indicator" }, "Saving...") : h("span")
+      );
+      container.appendChild(adminHeader);
+
+      // Add Day
+      const addDayCard = h("div", { className: "card", style: { padding: "20px", marginBottom: "24px" } },
+        h("div", { style: { fontSize: "13px", fontWeight: "700", color: "var(--text-dim)", marginBottom: "12px" } }, "Add New Day"),
+        h("div", { className: "add-day-row" },
+          h("input", { placeholder: "e.g. SUNDAY, Mar 9", value: state.newDate, onInput: (e) => { state.newDate = e.target.value; } }),
+          (() => {
+            const sel = h("select", { style: { width: "auto", minWidth: "160px" }, onChange: (e) => { state.newTier = e.target.value; } });
+            ["PROPHET ELITE", "MAX PROPHET", "SENTINEL"].forEach(t => {
+              const opt = h("option", { value: t }, t);
+              if (t === state.newTier) opt.selected = true;
+              sel.appendChild(opt);
+            });
+            return sel;
+          })(),
+          h("button", { className: "btn btn-primary", onClick: addDay }, "+ Add Day")
+        )
+      );
+      container.appendChild(addDayCard);
+
+      // Day cards with edit capability
+      state.data.days.forEach(day => {
+        const tc = TIER_COLORS[day.tier] || TIER_COLORS["PROPHET ELITE"];
+        const card = h("div", { className: "card", style: { borderLeft: `3px solid ${tc.border}` } });
+
+        card.appendChild(h("div", { className: "day-header" },
+          h("div", { style: { display: "flex", alignItems: "center", gap: "10px" } },
+            h("span", { style: { fontFamily: "var(--display)", fontSize: "14px", fontWeight: "700" } }, day.date),
+            h("span", { className: "tier-badge", style: { background: tc.bg, color: tc.text } }, day.tier)
+          ),
+          h("button", { className: "btn", style: { fontSize: "11px" }, onClick: () => addPick(day.id) }, "+ Add Pick")
+        ));
+
+        day.picks.forEach(pick => {
+          const pickEl = h("div", { className: "admin-pick" });
+
+          if (state.editingPick === pick.id) {
+            const f = state.editForm;
+            const grid = h("div", { className: "edit-grid" });
+
+            grid.appendChild(h("div", { className: "edit-full" }, h("label", null, "Matchup"), h("input", { value: f.matchup, onInput: (e) => { state.editForm.matchup = e.target.value; } })));
+            grid.appendChild(h("div", null, h("label", null, "Pick"), h("input", { value: f.pick, onInput: (e) => { state.editForm.pick = e.target.value; } })));
+
+            const resultSel = h("select", { onChange: (e) => { state.editForm.result = e.target.value; } });
+            ["PENDING", "WIN", "LOSS", "PUSH"].forEach(r => { const o = h("option", { value: r }, r); if (r === f.result) o.selected = true; resultSel.appendChild(o); });
+            grid.appendChild(h("div", null, h("label", null, "Result"), resultSel));
+
+            grid.appendChild(h("div", null, h("label", null, "Units"), h("input", { type: "number", step: "0.25", value: String(f.units), onInput: (e) => { state.editForm.units = parseFloat(e.target.value) || 0; } })));
+            grid.appendChild(h("div", null, h("label", null, "Odds"), h("input", { type: "number", value: String(f.odds), onInput: (e) => { state.editForm.odds = parseInt(e.target.value) || -110; } })));
+
+            const emojiSel = h("select", { onChange: (e) => { state.editForm.emoji = e.target.value; } });
+            [["🐋", "🐋 WHALE"], ["🦈", "🦈 SHARK"], ["🌊", "🌊 MAJOR SPLASH"], ["💧", "💧 BIG BUMP"], ["🔍", "🔍 STANDARD STRIKE"]].forEach(([v, l]) => {
+              const o = h("option", { value: v }, l); if (v === f.emoji) o.selected = true; emojiSel.appendChild(o);
+            });
+            grid.appendChild(h("div", null, h("label", null, "Emoji"), emojiSel));
+
+            grid.appendChild(h("div", { className: "edit-full" }, h("label", null, "Note / Score"), h("input", { value: f.note, placeholder: "e.g. Team A 85, Team B 72", onInput: (e) => { state.editForm.note = e.target.value; } })));
+
+            grid.appendChild(h("div", { className: "edit-actions" },
+              h("button", { className: "btn btn-primary", onClick: () => updatePick(day.id, pick.id, state.editForm) }, "Save"),
+              h("button", { className: "btn", onClick: () => { state.editingPick = null; render(); } }, "Cancel"),
+              h("button", { className: "btn btn-danger", style: { marginLeft: "auto" }, onClick: () => deletePick(day.id, pick.id) }, "Delete")
+            ));
+            pickEl.appendChild(grid);
+          } else {
+            const resultClass = pick.result === "WIN" ? "result-win" : pick.result === "LOSS" ? "result-loss" : pick.result === "PUSH" ? "result-push" : "result-pending";
+            pickEl.appendChild(h("div", { className: "admin-pick-row" },
+              h("div", null,
+                h("div", { style: { fontSize: "13px", fontWeight: "500" } }, pick.matchup),
+                h("div", { style: { fontSize: "11px", color: "var(--text-muted)" } }, `${pick.pick} · ${pick.units}u · ${pick.odds}`)
+              ),
+              h("div", { style: { display: "flex", alignItems: "center", gap: "10px" } },
+                h("span", { className: `result-badge ${resultClass}`, style: { fontSize: "11px" } }, pick.result),
+                h("button", { className: "btn", style: { fontSize: "11px", padding: "4px 10px" }, onClick: () => startEdit(pick) }, "Edit")
+              )
+            ));
+          }
+          card.appendChild(pickEl);
+        });
+        container.appendChild(card);
+      });
+    }
+
+    // ─── INIT ───
+    loadData();
+  </script>
+</body>
+</html>
