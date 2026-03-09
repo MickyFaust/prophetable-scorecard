@@ -349,7 +349,7 @@
       container.appendChild(filterBar);
 
       // Days
-      const filteredDays = state.filterTier === "ALL" ? state.data.days : state.data.days.filter(d => d.tier === state.filterTier);
+      const filteredDays = state.filterTier === "ALL" ? [...state.data.days].reverse() : state.data.days.filter(d => d.tier === state.filterTier).reverse();
       filteredDays.forEach((day, i) => {
         const tc = TIER_COLORS[day.tier] || TIER_COLORS["PROPHET ELITE"];
         const dayW = day.picks.filter(p => p.result === "WIN").length;
