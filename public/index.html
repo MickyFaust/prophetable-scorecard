@@ -35,7 +35,7 @@
     .stat-value { font-family: var(--display); font-size: 28px; font-weight: 800; color: #f8fafc; }
     .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-    .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .tier-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
     .tier-box { padding: 16px; background: rgba(0,0,0,0.3); border-radius: 8px; }
     .tier-name { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px; }
     .tier-record { font-family: var(--display); font-size: 20px; font-weight: 800; }
@@ -128,8 +128,7 @@
 
     const TIER_COLORS = {
       "PROPHET ELITE": { bg: "rgba(37,99,235,0.12)", border: "#2563eb", text: "#60a5fa" },
-      "MAX PROPHET": { bg: "rgba(168,85,247,0.12)", border: "#a855f7", text: "#c084fc" },
-      "SENTINEL": { bg: "rgba(234,179,8,0.12)", border: "#eab308", text: "#fbbf24" }
+      "MAX PROPHET": { bg: "rgba(168,85,247,0.12)", border: "#a855f7", text: "#c084fc" }
     };
 
     // ─── API ───
@@ -319,12 +318,12 @@
       });
       container.appendChild(grid);
 
-      // Tier Breakdown
-      const tiers = ["PROPHET ELITE", "MAX PROPHET", "SENTINEL"].map(t => {
+      // Tier Breakdown — Two buckets only: ELITE and MAX
+      const tiers = ["PROPHET ELITE", "MAX PROPHET"].map(t => {
         const picks = state.data.days.filter(d => d.tier === t).flatMap(d => d.picks).filter(p => p.result !== "PENDING");
         return { name: t, w: picks.filter(p => p.result === "WIN").length, l: picks.filter(p => p.result === "LOSS").length, u: picks.reduce((s, p) => s + p.pnl, 0) };
       });
-      const tierColors = { "PROPHET ELITE": "#2563eb", "MAX PROPHET": "#a855f7", "SENTINEL": "#eab308" };
+      const tierColors = { "PROPHET ELITE": "#2563eb", "MAX PROPHET": "#a855f7" };
 
       const tierCard = h("div", { className: "card", style: { padding: "20px", marginBottom: "28px" } },
         h("div", { style: { fontFamily: "var(--display)", fontSize: "14px", fontWeight: "700", color: "var(--text-dim)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "16px" } }, "Tier Breakdown"),
@@ -338,9 +337,9 @@
       );
       container.appendChild(tierCard);
 
-      // Filters
+      // Filters — Two buckets only
       const filterBar = h("div", { className: "filter-bar" });
-      ["ALL", "PROPHET ELITE", "MAX PROPHET", "SENTINEL"].forEach(f => {
+      ["ALL", "PROPHET ELITE", "MAX PROPHET"].forEach(f => {
         filterBar.appendChild(h("button", {
           className: `filter-btn ${state.filterTier === f ? "active" : ""}`,
           onClick: () => { state.filterTier = f; render(); }
@@ -348,7 +347,7 @@
       });
       container.appendChild(filterBar);
 
-      // Days
+      // Days — newest first
       const filteredDays = state.filterTier === "ALL" ? [...state.data.days].reverse() : state.data.days.filter(d => d.tier === state.filterTier).reverse();
       filteredDays.forEach((day, i) => {
         const tc = TIER_COLORS[day.tier] || TIER_COLORS["PROPHET ELITE"];
@@ -407,14 +406,14 @@
       );
       container.appendChild(adminHeader);
 
-      // Add Day
+      // Add Day — Two tiers only
       const addDayCard = h("div", { className: "card", style: { padding: "20px", marginBottom: "24px" } },
         h("div", { style: { fontSize: "13px", fontWeight: "700", color: "var(--text-dim)", marginBottom: "12px" } }, "Add New Day"),
         h("div", { className: "add-day-row" },
           h("input", { placeholder: "e.g. SUNDAY, Mar 9", value: state.newDate, onInput: (e) => { state.newDate = e.target.value; } }),
           (() => {
             const sel = h("select", { style: { width: "auto", minWidth: "160px" }, onChange: (e) => { state.newTier = e.target.value; } });
-            ["PROPHET ELITE", "MAX PROPHET", "SENTINEL"].forEach(t => {
+            ["PROPHET ELITE", "MAX PROPHET"].forEach(t => {
               const opt = h("option", { value: t }, t);
               if (t === state.newTier) opt.selected = true;
               sel.appendChild(opt);
@@ -426,8 +425,8 @@
       );
       container.appendChild(addDayCard);
 
-      // Day cards with edit capability
-      state.data.days.forEach(day => {
+      // Day cards — newest first
+      [...state.data.days].reverse().forEach(day => {
         const tc = TIER_COLORS[day.tier] || TIER_COLORS["PROPHET ELITE"];
         const card = h("div", { className: "card", style: { borderLeft: `3px solid ${tc.border}` } });
 
