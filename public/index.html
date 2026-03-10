@@ -176,6 +176,41 @@
       return 0;
     }
 
+    function autoEmoji(units) {
+      if (units >= 2.0) return "🐋";
+      if (units >= 1.75) return "🦈";
+      if (units >= 1.5) return "🌊";
+      if (units >= 1.25) return "💧";
+      return "🔍";
+    }
+
+    function movePick(fromDayId, pickId, toTier) {
+      const pick = state.data.days.flatMap(d => d.id === fromDayId ? d.picks : []).find(p => p.id === pickId);
+      if (!pick) return;
+
+      // Remove from source day
+      state.data.days = state.data.days.map(d => {
+        if (d.id !== fromDayId) return d;
+        return { ...d, picks: d.picks.filter(p => p.id !== pickId) };
+      });
+
+      // Find the target day (same date, different tier)
+      const sourceDay = state.data.days.find(d => d.id === fromDayId);
+      const sourceDate = sourceDay ? sourceDay.date : "";
+      let targetDay = state.data.days.find(d => d.date === sourceDate && d.tier === toTier);
+
+      if (!targetDay) {
+        // Create the target day if it doesn't exist
+        const newId = sourceDate.replace(/[^a-z0-9]/gi, "_").toLowerCase() + "_" + toTier.replace(/\s/g, "_").toLowerCase();
+        targetDay = { id: newId, date: sourceDate, tier: toTier, picks: [] };
+        state.data.days.push(targetDay);
+      }
+
+      targetDay.picks.push(pick);
+      state.editingPick = null;
+      saveData();
+    }
+
     // ─── ACTIONS ───
     function updatePick(dayId, pickId, updates) {
       state.data.days = state.data.days.map(d => {
@@ -183,6 +218,7 @@
         return { ...d, picks: d.picks.map(p => {
           if (p.id !== pickId) return p;
           const updated = { ...p, ...updates };
+          updated.emoji = autoEmoji(updated.units);
           updated.pnl = calcPnl(updated.units, updated.odds, updated.result);
           return updated;
         })};
@@ -455,17 +491,13 @@
             grid.appendChild(h("div", null, h("label", null, "Units"), h("input", { type: "number", step: "0.25", value: String(f.units), onInput: (e) => { state.editForm.units = parseFloat(e.target.value) || 0; } })));
             grid.appendChild(h("div", null, h("label", null, "Odds"), h("input", { type: "number", value: String(f.odds), onInput: (e) => { state.editForm.odds = parseInt(e.target.value) || -110; } })));
 
-            const emojiSel = h("select", { onChange: (e) => { state.editForm.emoji = e.target.value; } });
-            [["🐋", "🐋 WHALE"], ["🦈", "🦈 SHARK"], ["🌊", "🌊 MAJOR SPLASH"], ["💧", "💧 BIG BUMP"], ["🔍", "🔍 STANDARD STRIKE"]].forEach(([v, l]) => {
-              const o = h("option", { value: v }, l); if (v === f.emoji) o.selected = true; emojiSel.appendChild(o);
-            });
-            grid.appendChild(h("div", null, h("label", null, "Emoji"), emojiSel));
-
             grid.appendChild(h("div", { className: "edit-full" }, h("label", null, "Note / Score"), h("input", { value: f.note, placeholder: "e.g. Team A 85, Team B 72", onInput: (e) => { state.editForm.note = e.target.value; } })));
 
+            const moveTier = day.tier === "PROPHET ELITE" ? "MAX PROPHET" : "PROPHET ELITE";
             grid.appendChild(h("div", { className: "edit-actions" },
               h("button", { className: "btn btn-primary", onClick: () => updatePick(day.id, pick.id, state.editForm) }, "Save"),
               h("button", { className: "btn", onClick: () => { state.editingPick = null; render(); } }, "Cancel"),
+              h("button", { className: "btn", style: { background: "rgba(168,85,247,0.15)", borderColor: "rgba(168,85,247,0.3)", color: "#c084fc" }, onClick: () => movePick(day.id, pick.id, moveTier) }, `Move → ${moveTier}`),
               h("button", { className: "btn btn-danger", style: { marginLeft: "auto" }, onClick: () => deletePick(day.id, pick.id) }, "Delete")
             ));
             pickEl.appendChild(grid);
