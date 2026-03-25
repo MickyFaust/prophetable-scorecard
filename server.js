@@ -61,3 +61,4 @@ app.get("*", (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Prophetable Scorecard running on port ${PORT}`);
 });
+// Deploy trigger - Wed Mar 25 09:36:35 EDT 2026
