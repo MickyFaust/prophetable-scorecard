@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syndicate Admin | 2026</title>
+    <style>
+        body { background: #0a0b10; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .admin-box { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; }
+        h2 { color: #00d2ff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
+        input, select { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        button { background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #0099ff; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="admin-box">
+        <h2>Add New Play</h2>
+        <form action="/admin/add-play" method="POST">
+            <input type="password" name="password" placeholder="Admin Key" required>
+            <select name="league">
+                <option value="MLB">MLB</option>
+                <option value="NBA">NBA</option>
+                <option value="NFL">NFL</option>
+                <option value="NHL">NHL</option>
+                <option value="UFC">UFC</option>
+            </select>
+            <input type="text" name="matchup" placeholder="Matchup (e.g. Yankees vs Astros)" required>
+            <input type="text" name="pick" placeholder="The Pick (e.g. Yankees ML)" required>
+            <input type="number" step="0.1" name="units" placeholder="Units (e.g. 1.5)" required>
+            <button type="submit">Deploy to Scorecard</button>
+        </form>
+    </div>
+</body>
+</html>
