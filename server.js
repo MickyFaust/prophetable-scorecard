@@ -3,32 +3,49 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 
-const DATA_PATH = '/app/data/plays.json'; // Railway Volume Path
-const PORT = process.env.PORT || 8080;
-const PASSWORD = process.env.ADMIN_PASSWORD || 'Dravrah1!1';
+const PORT = process.env.PORT || 3000;
+const PASSWORD = 'Dravrah1!1';
+const DATA_PATH = '/app/data/plays.json';
 
-app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-// Serve the Scorecard
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get('/api/plays', (req, res) => {
+    if (fs.existsSync(DATA_PATH)) {
+        const data = fs.readFileSync(DATA_PATH);
+        res.json(JSON.parse(data));
+    } else {
+        res.json([]);
+    }
 });
 
-// Admin Login/Dashboard Logic
 app.post('/admin/add-play', (req, res) => {
     const { password, league, matchup, pick, units } = req.body;
-    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
-
+    if (password !== PASSWORD) {
+        return res.status(401).send('Unauthorized: Incorrect Syndicate Key');
+    }
     let plays = [];
     if (fs.existsSync(DATA_PATH)) {
         plays = JSON.parse(fs.readFileSync(DATA_PATH));
     }
-    
-    plays.push({ date: new Date().toLocaleDateString(), league, matchup, pick, units });
+    const newPlay = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString(),
+        league,
+        matchup,
+        pick,
+        units: parseFloat(units)
+    };
+    plays.push(newPlay);
+    const dir = path.dirname(DATA_PATH);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
-    res.send('Play Recorded! Refresh your Scorecard.');
+    res.redirect('/');
 });
 
-app.listen(PORT, () => console.log(`ProphetableX active on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log('Syndicate Engine Active');
+});
