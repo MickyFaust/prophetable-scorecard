@@ -1,64 +1,34 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, "data", "scorecard.json");
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "prophet2026";
 
-app.use(express.json({ limit: "5mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+const DATA_PATH = '/app/data/plays.json'; // Railway Volume Path
+const PORT = process.env.PORT || 8080;
+const PASSWORD = process.env.ADMIN_PASSWORD || 'Dravrah1!1';
 
-// Ensure data directory and file exist
-if (!fs.existsSync(path.join(__dirname, "data"))) {
-  fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
-}
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify({ days: [] }, null, 2));
-}
+app.use(express.static('public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// GET scorecard data (public)
-app.get("/api/scorecard", (req, res) => {
-  try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to read scorecard data" });
-  }
+// Serve the Scorecard
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// POST update scorecard data (admin - password protected)
-app.post("/api/scorecard", (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  try {
-    const data = req.body;
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to save scorecard data" });
-  }
+// Admin Login/Dashboard Logic
+app.post('/admin/add-play', (req, res) => {
+    const { password, league, matchup, pick, units } = req.body;
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+
+    let plays = [];
+    if (fs.existsSync(DATA_PATH)) {
+        plays = JSON.parse(fs.readFileSync(DATA_PATH));
+    }
+    
+    plays.push({ date: new Date().toLocaleDateString(), league, matchup, pick, units });
+    fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
+    res.send('Play Recorded! Refresh your Scorecard.');
 });
 
-// POST verify admin password
-app.post("/api/auth", (req, res) => {
-  const { password } = req.body;
-  if (password === ADMIN_PASSWORD) {
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ error: "Invalid password" });
-  }
-});
-
-// Catch-all: serve index.html for SPA routing
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Prophetable Scorecard running on port ${PORT}`);
-});
-// Deploy trigger - Wed Mar 25 09:36:35 EDT 2026
+app.listen(PORT, () => console.log(`ProphetableX active on port ${PORT}`));
