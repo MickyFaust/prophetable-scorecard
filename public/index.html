@@ -16,14 +16,15 @@
         .stat-card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); padding: 25px; border-radius: 20px; backdrop-filter: blur(10px); text-align: center; }
         .stat-val { font-size: 2.2rem; font-weight: 900; display: block; margin-bottom: 5px; }
         .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.6; }
-        .play-card { background: var(--card-bg); margin-bottom: 15px; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent); }
-        .play-card.max { border-left-color: var(--accent-purple); }
-        .play-info h3 { margin: 0; font-size: 1.1rem; }
-        .play-info p { margin: 5px 0 0; opacity: 0.5; font-size: 0.8rem; text-transform: uppercase; }
-        .units { font-weight: 700; font-size: 1.2rem; }
-        .pos { color: var(--success); }
+        .play-card { background: var(--card-bg); margin-bottom: 15px; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent); border-right: 1px solid rgba(255,255,255,0.05); }
+        .play-card.max { border-left-color: var(--accent-purple); box-shadow: inset 5px 0 15px rgba(157, 80, 187, 0.1); }
+        .play-info h3 { margin: 0; font-size: 1.1rem; letter-spacing: 0.5px; }
+        .play-info p { margin: 5px 0 0; opacity: 0.5; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; }
+        .units { font-weight: 900; font-size: 1.3rem; }
+        .pos { color: var(--success); text-shadow: 0 0 10px rgba(0,255,136,0.2); }
         .neg { color: var(--danger); }
-        .admin-btn { background: rgba(255,255,255,0.1); color: white; text-decoration: none; padding: 10px 20px; border-radius: 30px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2); }
+        .admin-btn { background: rgba(255,255,255,0.05); color: white; text-decoration: none; padding: 10px 20px; border-radius: 30px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
+        .admin-btn:hover { background: var(--accent); color: #000; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -48,42 +49,53 @@
             </div>
         </div>
 
-        <h2 style="margin-bottom: 20px;">Live Action</h2>
+        <h2 style="margin-bottom: 25px; font-weight: 900; letter-spacing: -0.5px;">RECENT ACTION</h2>
         <div id="plays-container"></div>
     </div>
 
     <script>
         async function loadPlays() {
-            const res = await fetch('/api/plays');
-            const plays = await res.json();
-            const container = document.getElementById('plays-container');
-            
-            let totalUnits = 0;
-            let wins = 0;
-
-            if (plays.length === 0) {
-                container.innerHTML = '<p style="opacity:0.5">Awaiting 2026 Syndicate data...</p>';
-                return;
-            }
-
-            container.innerHTML = plays.slice().reverse().map(play => {
-                totalUnits += parseFloat(play.units);
-                if (parseFloat(play.units) > 0) wins++;
+            try {
+                const res = await fetch('/api/plays');
+                const plays = await res.json();
+                const container = document.getElementById('plays-container');
                 
-                const unitClass = play.units >= 0 ? 'pos' : 'neg';
-                const tierClass = play.tier === 'MAX PROPHET' ? 'max' : '';
+                let totalUnits = 0;
+                let wins = 0;
 
-                return `
-                    <div class="play-card ${tierClass}">
-                        <div class="play-info">
-                            <h3>${play.matchup} — ${play.pick}</h3>
-                            <p>${play.date} | ${play.league} | ${play.tier || 'ELITE'}</p>
+                if (!plays || plays.length === 0) {
+                    container.innerHTML = '<p style="opacity:0.3; text-align:center; padding: 40px;">Awaiting 2026 Syndicate data...</p>';
+                    return;
+                }
+
+                container.innerHTML = plays.slice().reverse().map(play => {
+                    totalUnits += parseFloat(play.units);
+                    if (parseFloat(play.units) > 0) wins++;
+                    
+                    const unitClass = play.units >= 0 ? 'pos' : 'neg';
+                    const tierClass = play.tier === 'MAX PROPHET' ? 'max' : '';
+                    const displayOdds = play.odds ? `(${play.odds})` : '';
+
+                    return `
+                        <div class="play-card ${tierClass}">
+                            <div class="play-info">
+                                <h3>${play.matchup} — ${play.pick} ${displayOdds}</h3>
+                                <p>${play.date} | ${play.league} | ${play.tier || 'PROPHET ELITE'}</p>
+                            </div>
+                            <div class="units ${unitClass}">${play.units > 0 ? '+' : ''}${play.units}u</div>
                         </div>
-                        <div class="units ${unitClass}">${play.units > 0 ? '+' : ''}${play.units}u</div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
 
-            document.getElementById('total-units').innerText = (totalUnits >= 0 ? '+' : '') + totalUnits.toFixed(2) + 'u';
-            document.getElementById('total-units').className = 'stat-val ' + (totalUnits >= 0 ? 'pos' : 'neg');
-            document.getElementById('total-plays').innerText = plays
+                document.getElementById('total-units').innerText = (totalUnits >= 0 ? '+' : '') + totalUnits.toFixed(2) + 'u';
+                document.getElementById('total-units').className = 'stat-val ' + (totalUnits >= 0 ? 'pos' : 'neg');
+                document.getElementById('total-plays').innerText = plays.length;
+                document.getElementById('win-rate').innerText = ((wins / plays.length) * 100).toFixed(1) + '%';
+            } catch (err) {
+                document.getElementById('plays-container').innerHTML = '<p style="color:red">Error connecting to Syndicate Engine.</p>';
+            }
+        }
+        loadPlays();
+    </script>
+</body>
+</html>
