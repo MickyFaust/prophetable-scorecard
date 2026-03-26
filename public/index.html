@@ -1,146 +1,69 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prophetable 2026 | Syndicate Scorecard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0a0b10;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --accent: #00d2ff;
-            --accent-purple: #9d50bb;
-            --text: #ffffff;
-            --success: #00ff88;
-        }
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const app = express();
 
-        body {
-            background: radial-gradient(circle at top right, #1a1b25, var(--bg));
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-        }
+// --- CONFIGURATION ---
+const PORT = process.env.PORT || 3000;
+const PASSWORD = 'Dravrah1!1'; // Your Syndicate Key
+const DATA_PATH = '/app/data/plays.json'; // Points to your Railway Volume
 
-        .container { max-width: 1000px; margin: 0 auto; }
+// --- MIDDLEWARE ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public')); // This makes admin.html and index.html work automatically
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 40px 0;
-        }
+// --- API ROUTES ---
 
-        .logo { font-weight: 900; font-size: 1.8rem; letter-spacing: -1px; text-transform: uppercase; }
-        .logo span { color: var(--accent); }
+// 1. Get all plays for the scorecard
+app.get('/api/plays', (req, res) => {
+    if (fs.existsSync(DATA_PATH)) {
+        const data = fs.readFileSync(DATA_PATH);
+        res.json(JSON.parse(data));
+    } else {
+        res.json([]); // Return empty list if no plays yet
+    }
+});
 
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
+// 2. Add a new play via the Admin Form
+app.post('/admin/add-play', (req, res) => {
+    const { password, league, matchup, pick, units } = req.body;
 
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 25px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            text-align: center;
-        }
+    // Check Password
+    if (password !== PASSWORD) {
+        return res.status(401).send('Unauthorized: Incorrect Syndicate Key');
+    }
 
-        .stat-val { font-size: 2.5rem; font-weight: 900; display: block; margin-bottom: 5px; }
-        .stat-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.6; }
+    let plays = [];
+    if (fs.existsSync(DATA_PATH)) {
+        plays = JSON.parse(fs.readFileSync(DATA_PATH));
+    }
 
-        /* Plays List */
-        .play-card {
-            background: var(--card-bg);
-            margin-bottom: 15px;
-            padding: 20px;
-            border-radius: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid var(--accent);
-            transition: transform 0.2s;
-        }
+    const newPlay = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString(),
+        league,
+        matchup,
+        pick,
+        units: parseFloat(units)
+    };
 
-        .play-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.05); }
+    plays.push(newPlay);
 
-        .play-info h3 { margin: 0; font-size: 1.1rem; }
-        .play-info p { margin: 5px 0 0; opacity: 0.5; font-size: 0.9rem; }
+    // Ensure the data directory exists
+    const dir = path.dirname(DATA_PATH);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
 
-        .units { color: var(--success); font-weight: 700; font-size: 1.2rem; }
+    // Save to the Volume
+    fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
 
-        .admin-btn {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            transition: 0.3s;
-        }
-        .admin-btn:hover { background: var(--accent); }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div class="logo">PROPHETABLE<span>2026</span></div>
-            <a href="/admin" class="admin-btn">SYNDICATE LOGIN</a>
-        </header>
+    // Redirect back to home to see the result
+    res.redirect('/');
+});
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-val" id="total-units">+0.00u</span>
-                <span class="stat-label">Total Profit</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-val" id="win-rate">0%</span>
-                <span class="stat-label">Win Rate</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-val" id="total-plays">0</span>
-                <span class="stat-label">Plays Logged</span>
-            </div>
-        </div>
-
-        <h2 style="margin-bottom: 30px; font-weight: 700;">Recent Action</h2>
-        <div id="plays-container">
-            </div>
-    </div>
-
-    <script>
-        async function loadPlays() {
-            try {
-                const response = await fetch('/api/plays'); // This needs to match your server.js route
-                const plays = await response.json();
-                const container = document.getElementById('plays-container');
-                
-                if (plays.length === 0) {
-                    container.innerHTML = '<p style="opacity:0.5">Waiting for the first 2026 play...</p>';
-                    return;
-                }
-
-                container.innerHTML = plays.reverse().map(play => `
-                    <div class="play-card">
-                        <div class="play-info">
-                            <h3>${play.matchup} — ${play.pick}</h3>
-                            <p>${play.league} | ${play.date}</p>
-                        </div>
-                        <div class="units">${play.units > 0 ? '+' : ''}${play.units}u</div>
-                    </div>
-                `).join('');
-            } catch (e) {
-                console.log("No plays found yet.");
-            }
-        }
-        loadPlays();
-    </script>
-</body>
-</html>
+// --- START SERVER ---
+app.listen(PORT, () => {
+    console.log(`Syndicate Engine active on port ${PORT}`);
+});
