@@ -14,30 +14,38 @@
         button { background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #0099ff; transform: translateY(-2px); }
         
-        /* Styles for the delete list */
         .play-item { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); }
         .play-details { font-size: 0.85rem; }
         .play-details strong { color: #00d2ff; }
+        .action-buttons { display: flex; gap: 8px; }
         .delete-btn { background: #ff4444; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
         .delete-btn:hover { background: #cc0000; }
+        .edit-btn { background: rgba(255,255,255,0.1); color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
+        .edit-btn:hover { background: rgba(255,255,255,0.2); }
         #playList { max-height: 400px; overflow-y: auto; padding-right: 10px; }
+        #cancelEditBtn { background: rgba(255,255,255,0.1); color: white; display: none; }
+        #cancelEditBtn:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     
     <div class="admin-box">
-        <h2>ADD NEW PLAY</h2>
-        <form action="/admin/add-play" method="POST">
-            <input type="password" name="password" placeholder="Admin Key" required>
+        <h2 id="formTitle">ADD NEW PLAY</h2>
+        <form id="playForm" action="/admin/add-play" method="POST">
+            <input type="hidden" id="editId" name="editId">
+            <input type="password" id="adminPassword" name="password" placeholder="Admin Key" required>
+            
             <label>Play Date</label>
             <input type="date" name="customDate" id="datePicker" required>
+            
             <label>Tier</label>
-            <select name="tier">
+            <select name="tier" id="tierSelect">
                 <option value="PROPHET ELITE">PROPHET ELITE</option>
                 <option value="MAX PROPHET">MAX PROPHET</option>
             </select>
+            
             <label>Sport</label>
-            <select name="league">
+            <select name="league" id="leagueSelect">
                 <option value="MLB">MLB</option>
                 <option value="NBA">NBA</option>
                 <option value="NCAAB">NCAAB</option>
@@ -46,11 +54,13 @@
                 <option value="NHL">NHL</option>
                 <option value="UFC">UFC</option>
             </select>
-            <input type="text" name="matchup" placeholder="Matchup (e.g. Yankees vs Astros)" required>
-            <input type="text" name="pick" placeholder="Pick (e.g. Yankees ML)" required>
-            <input type="text" name="odds" placeholder="Odds (e.g. -110)" required>
+            
+            <input type="text" name="matchup" id="matchupInput" placeholder="Matchup (e.g. Yankees vs Astros)" required>
+            <input type="text" name="pick" id="pickInput" placeholder="Pick (e.g. Yankees ML)" required>
+            <input type="text" name="odds" id="oddsInput" placeholder="Odds (e.g. -110)" required>
+            
             <label>Units</label>
-            <select name="units">
+            <select name="units" id="unitsSelect">
                 <option value="1.0">1.0u</option>
                 <option value="1.25">1.25u</option>
                 <option value="1.5">1.5u</option>
@@ -62,47 +72,107 @@
                 <option value="-1.75">-1.75u (Loss)</option>
                 <option value="-2.0">-2.0u (Loss)</option>
             </select>
-            <button type="submit">Deploy to Scorecard</button>
+            
+            <button type="submit" id="submitBtn">Deploy to Scorecard</button>
+            <button type="button" id="cancelEditBtn" onclick="cancelEdit()">Cancel Edit</button>
         </form>
     </div>
 
     <div class="admin-box">
         <h2>MANAGE DATA</h2>
-        <input type="password" id="deleteAdminKey" placeholder="Admin Key (Required to Delete)">
+        <input type="password" id="actionAdminKey" placeholder="Admin Key (Required to Edit/Delete)">
         <div id="playList"></div>
     </div>
 
     <script>
         document.getElementById('datePicker').valueAsDate = new Date();
+        let allPlays = [];
 
         async function loadAdminPlays() {
             const res = await fetch('/api/plays');
-            const plays = await res.json();
+            allPlays = await res.json();
             const list = document.getElementById('playList');
             
-            if (plays.length === 0) {
+            if (allPlays.length === 0) {
                 list.innerHTML = "<p style='text-align:center; opacity:0.5;'>No plays found.</p>";
                 return;
             }
 
-            // Sort newest first
-            plays.sort((a, b) => new Date(b.date) - new Date(a.date));
+            allPlays.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            list.innerHTML = plays.map(p => `
+            list.innerHTML = allPlays.map(p => `
                 <div class="play-item">
                     <div class="play-details">
-                        <strong>${p.date}</strong> | ${p.league} <br>
+                        <strong>${p.date}</strong> | ${p.league} | ${p.tier}<br>
                         ${p.matchup} <br>
-                        <span style="opacity: 0.7;">${p.pick} (${p.units}u)</span>
+                        <span style="opacity: 0.7;">${p.pick} (${p.units}u) [${p.odds}]</span>
                     </div>
-                    <button class="delete-btn" onclick="deletePlay(${p.id})">Delete</button>
+                    <div class="action-buttons">
+                        <button class="edit-btn" onclick="startEdit(${p.id})">Edit</button>
+                        <button class="delete-btn" onclick="deletePlay(${p.id})">Delete</button>
+                    </div>
                 </div>
             `).join('');
         }
 
+        function startEdit(id) {
+            const play = allPlays.find(p => p.id === id);
+            if (!play) return;
+            
+            document.getElementById('editId').value = play.id;
+            document.getElementById('formTitle').innerText = "EDIT PLAY";
+            document.getElementById('submitBtn').innerText = "Update Scorecard";
+            document.getElementById('cancelEditBtn').style.display = "block";
+            
+            document.getElementById('datePicker').value = play.date;
+            document.getElementById('tierSelect').value = play.tier;
+            document.getElementById('leagueSelect').value = play.league;
+            document.getElementById('matchupInput').value = play.matchup;
+            document.getElementById('pickInput').value = play.pick;
+            document.getElementById('oddsInput').value = play.odds || "-110";
+            document.getElementById('unitsSelect').value = play.units.toString();
+            
+            const actionKey = document.getElementById('actionAdminKey').value;
+            if (actionKey) document.getElementById('adminPassword').value = actionKey;
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.getElementById('editId').value = "";
+            document.getElementById('formTitle').innerText = "ADD NEW PLAY";
+            document.getElementById('submitBtn').innerText = "Deploy to Scorecard";
+            document.getElementById('cancelEditBtn').style.display = "none";
+            document.getElementById('playForm').reset();
+            document.getElementById('datePicker').valueAsDate = new Date();
+        }
+
+        document.getElementById('playForm').addEventListener('submit', async (e) => {
+            const editId = document.getElementById('editId').value;
+            if (editId) {
+                e.preventDefault(); 
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData.entries());
+                
+                const res = await fetch(`/admin/edit-play/${editId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    cancelEdit();
+                    loadAdminPlays();
+                    alert('Play updated successfully!');
+                } else {
+                    alert('Update failed. Incorrect Admin Key?');
+                }
+            }
+        });
+
         async function deletePlay(id) {
-            const password = document.getElementById('deleteAdminKey').value;
-            if (!password) { alert('Enter Admin Key above to authorize deletion.'); return; }
+            const password = document.getElementById('actionAdminKey').value;
+            if (!password) { alert('Enter Admin Key in the "MANAGE DATA" section to authorize.'); return; }
             if (!confirm('Are you sure you want to permanently delete this play?')) return;
 
             const res = await fetch(`/admin/delete-play/${id}`, {
@@ -112,7 +182,7 @@
             });
 
             if (res.ok) {
-                loadAdminPlays(); // Reload the list instantly
+                loadAdminPlays();
             } else {
                 alert('Deletion failed. Incorrect Admin Key?');
             }
