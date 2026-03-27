@@ -5,17 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Syndicate Admin | 2026</title>
     <style>
-        body { background: #0a0b10; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .admin-box { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; backdrop-filter: blur(10px); }
-        h2 { color: #00d2ff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
+        body { background: #0a0b10; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 40px 20px; }
+        .admin-box { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 450px; margin-bottom: 30px; backdrop-filter: blur(10px); }
+        h2 { color: #00d2ff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-align: center; font-size: 1.2rem; }
         label { display: block; margin: 10px 0 5px; font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; }
         input, select, button { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
         input, select { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
         button { background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #0099ff; transform: translateY(-2px); }
+        
+        /* Styles for the delete list */
+        .play-item { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); }
+        .play-details { font-size: 0.85rem; }
+        .play-details strong { color: #00d2ff; }
+        .delete-btn { background: #ff4444; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
+        .delete-btn:hover { background: #cc0000; }
+        #playList { max-height: 400px; overflow-y: auto; padding-right: 10px; }
     </style>
 </head>
 <body>
+    
     <div class="admin-box">
         <h2>ADD NEW PLAY</h2>
         <form action="/admin/add-play" method="POST">
@@ -37,8 +46,8 @@
                 <option value="NHL">NHL</option>
                 <option value="UFC">UFC</option>
             </select>
-            <input type="text" name="matchup" placeholder="Matchup (Yankees vs Astros)" required>
-            <input type="text" name="pick" placeholder="Pick (Yankees ML)" required>
+            <input type="text" name="matchup" placeholder="Matchup (e.g. Yankees vs Astros)" required>
+            <input type="text" name="pick" placeholder="Pick (e.g. Yankees ML)" required>
             <input type="text" name="odds" placeholder="Odds (e.g. -110)" required>
             <label>Units</label>
             <select name="units">
@@ -47,11 +56,69 @@
                 <option value="1.5">1.5u</option>
                 <option value="1.75">1.75u</option>
                 <option value="2.0">2.0u</option>
-                <option value="-1.1">-1.1u (Loss)</option>
+                <option value="-1.0">-1.0u (Loss)</option>
+                <option value="-1.25">-1.25u (Loss)</option>
+                <option value="-1.5">-1.5u (Loss)</option>
+                <option value="-1.75">-1.75u (Loss)</option>
+                <option value="-2.0">-2.0u (Loss)</option>
             </select>
             <button type="submit">Deploy to Scorecard</button>
         </form>
     </div>
-    <script>document.getElementById('datePicker').valueAsDate = new Date();</script>
+
+    <div class="admin-box">
+        <h2>MANAGE DATA</h2>
+        <input type="password" id="deleteAdminKey" placeholder="Admin Key (Required to Delete)">
+        <div id="playList"></div>
+    </div>
+
+    <script>
+        document.getElementById('datePicker').valueAsDate = new Date();
+
+        async function loadAdminPlays() {
+            const res = await fetch('/api/plays');
+            const plays = await res.json();
+            const list = document.getElementById('playList');
+            
+            if (plays.length === 0) {
+                list.innerHTML = "<p style='text-align:center; opacity:0.5;'>No plays found.</p>";
+                return;
+            }
+
+            // Sort newest first
+            plays.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            list.innerHTML = plays.map(p => `
+                <div class="play-item">
+                    <div class="play-details">
+                        <strong>${p.date}</strong> | ${p.league} <br>
+                        ${p.matchup} <br>
+                        <span style="opacity: 0.7;">${p.pick} (${p.units}u)</span>
+                    </div>
+                    <button class="delete-btn" onclick="deletePlay(${p.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        async function deletePlay(id) {
+            const password = document.getElementById('deleteAdminKey').value;
+            if (!password) { alert('Enter Admin Key above to authorize deletion.'); return; }
+            if (!confirm('Are you sure you want to permanently delete this play?')) return;
+
+            const res = await fetch(`/admin/delete-play/${id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+
+            if (res.ok) {
+                loadAdminPlays(); // Reload the list instantly
+            } else {
+                alert('Deletion failed. Incorrect Admin Key?');
+            }
+        }
+
+        loadAdminPlays();
+    </script>
 </body>
 </html>
