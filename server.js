@@ -11,9 +11,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Keep your migration route (You can remove this later once your data is clean)
 app.get('/admin/migrate-history', (req, res) => {
-    // ... [Your existing migration array goes here if you still need it, or leave it blank] ...
     res.send("Migration route active.");
 });
 
@@ -33,7 +31,34 @@ app.post('/admin/add-play', (req, res) => {
     res.redirect('/');
 });
 
-// NEW: Delete Route
+// NEW: Edit Route
+app.put('/admin/edit-play/:id', (req, res) => {
+    const { password, customDate, tier, league, matchup, pick, odds, units } = req.body;
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+    
+    if (fs.existsSync(DATA_PATH)) {
+        let plays = JSON.parse(fs.readFileSync(DATA_PATH));
+        const playIndex = plays.findIndex(p => p.id === parseInt(req.params.id));
+        
+        if (playIndex !== -1) {
+            plays[playIndex] = {
+                ...plays[playIndex],
+                date: customDate,
+                tier,
+                league,
+                matchup,
+                pick,
+                odds,
+                units: parseFloat(units)
+            };
+            fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
+            return res.status(200).send('Updated successfully');
+        }
+    }
+    res.status(404).send('Play not found');
+});
+
+// Delete Route
 app.delete('/admin/delete-play/:id', (req, res) => {
     const { password } = req.body;
     if (password !== PASSWORD) return res.status(401).send('Unauthorized');
