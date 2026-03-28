@@ -66,7 +66,7 @@ app.post('/api/generate-play', async (req, res) => {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022', 
+                model: 'claude-sonnet-4-5-20250929', // Upgraded to the active 2026 Sonnet 4.5 model!
                 max_tokens: 300,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: rawText }]
