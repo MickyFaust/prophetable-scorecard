@@ -27,7 +27,6 @@
         .pending-controls { display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; justify-content: space-between; }
         .scroll-list { max-height: 400px; overflow-y: auto; padding-right: 10px; }
         
-        /* Loading Spinner */
         .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #00d2ff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -107,7 +106,6 @@
         let allPlays = [];
         let pendingPlays = [];
 
-        // --- THE AI DROP ZONE ---
         async function generateAIPlay() {
             const password = document.getElementById('aiAdminKey').value;
             const rawText = document.getElementById('rawPlayText').value;
@@ -117,25 +115,32 @@
             document.getElementById('btnText').style.display = 'none';
             document.getElementById('aiLoader').style.display = 'block';
             
-            const res = await fetch('/api/generate-play', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password, rawText })
-            });
-            
-            document.getElementById('btnText').style.display = 'block';
-            document.getElementById('aiLoader').style.display = 'none';
-            
-            if (res.ok) {
-                document.getElementById('rawPlayText').value = '';
-                alert("Play Generated and sent to Queue!");
-                loadPendingPlays(); // Refresh queue instantly
-            } else {
-                alert("AI Generation failed. Check Admin Key or Railway Env Vars.");
+            try {
+                const res = await fetch('/api/generate-play', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, rawText })
+                });
+                
+                document.getElementById('btnText').style.display = 'block';
+                document.getElementById('aiLoader').style.display = 'none';
+                
+                if (res.ok) {
+                    document.getElementById('rawPlayText').value = '';
+                    alert("Play Generated and sent to Queue!");
+                    loadPendingPlays(); 
+                } else {
+                    // THIS IS THE FIX: IT NOW SHOWS THE EXACT SERVER ERROR
+                    const errorText = await res.text();
+                    alert(`SERVER ERROR:\n${errorText}`);
+                }
+            } catch (err) {
+                document.getElementById('btnText').style.display = 'block';
+                document.getElementById('aiLoader').style.display = 'none';
+                alert(`NETWORK ERROR:\n${err.message}`);
             }
         }
 
-        // --- PENDING QUEUE ---
         async function loadPendingPlays() {
             const res = await fetch('/api/scorecard');
             const data = await res.json();
@@ -187,7 +192,6 @@
             if (res.ok) { loadPendingPlays(); } else { alert('Failed.'); }
         }
 
-        // --- MANAGE OFFICIAL PLAYS & EDIT LOGIC ---
         async function loadAdminPlays() {
             const res = await fetch('/api/plays');
             allPlays = await res.json();
