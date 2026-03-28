@@ -51,8 +51,8 @@ app.post('/api/generate-play', async (req, res) => {
     Format exactly like this:
     {
       "date": "YYYY-MM-DD",
-      "league": "NBA/MLB/NCAAB/NHL/NFL",
-      "tier": "PROPHET ELITE" or "MAX PROPHET",
+      "league": "NBA",
+      "tier": "PROPHET ELITE",
       "home_team": "Team A",
       "away_team": "Team B",
       "pick": "Team A -5",
@@ -77,6 +77,13 @@ app.post('/api/generate-play', async (req, res) => {
         });
 
         const data = await aiResponse.json();
+
+        // NEW: If Anthropic rejects the request, log the exact reason and send it to the UI.
+        if (!aiResponse.ok) {
+            console.error("Anthropic Rejected the API Call:", data);
+            return res.status(500).send(`Anthropic Error: ${data.error?.message || 'Check Railway Logs'}`);
+        }
+
         const extractedJson = JSON.parse(data.content[0].text);
 
         // Load current pending queue and add the new AI-generated play
@@ -90,8 +97,8 @@ app.post('/api/generate-play', async (req, res) => {
 
         res.status(200).json(extractedJson);
     } catch (err) {
-        console.error("AI Generation Error:", err);
-        res.status(500).send('Failed to generate play from AI.');
+        console.error("AI Generation/Parsing Error:", err);
+        res.status(500).send('Failed to generate or parse play from AI.');
     }
 });
 
