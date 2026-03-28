@@ -69,7 +69,7 @@ app.post('/api/generate-play', async (req, res) => {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307', // Fast model for data extraction
+                model: 'claude-3-5-haiku-20241022', // Updated to the active, current Haiku model
                 max_tokens: 300,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: rawText }]
@@ -78,7 +78,7 @@ app.post('/api/generate-play', async (req, res) => {
 
         const data = await aiResponse.json();
 
-        // NEW: If Anthropic rejects the request, log the exact reason and send it to the UI.
+        // If Anthropic rejects the request, log the exact reason and send it to the UI.
         if (!aiResponse.ok) {
             console.error("Anthropic Rejected the API Call:", data);
             return res.status(500).send(`Anthropic Error: ${data.error?.message || 'Check Railway Logs'}`);
