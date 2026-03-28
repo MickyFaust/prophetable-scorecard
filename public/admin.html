@@ -20,15 +20,18 @@
         .play-details strong { color: #00d2ff; }
         .action-buttons { display: flex; gap: 8px; }
         
-        .approve-btn { background: #00ff88; color: black; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
-        .approve-btn:hover { background: #00cc6a; }
-        .delete-btn { background: #ff4444; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
-        .delete-btn:hover { background: #cc0000; }
+        /* 1-Click Grading Buttons */
+        .btn-win { background: #00ff88; color: black; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
+        .btn-win:hover { background: #00cc6a; }
+        .btn-push { background: #9d50bb; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
+        .btn-push:hover { background: #7a3e93; }
+        .btn-loss { background: #ff4444; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
+        .btn-loss:hover { background: #cc0000; }
+        
         .edit-btn { background: rgba(255,255,255,0.1); color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
         .edit-btn:hover { background: rgba(255,255,255,0.2); }
         
-        .pending-controls { display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; }
-        .pending-controls select { margin: 0; padding: 8px; font-size: 0.85rem; flex-grow: 1; }
+        .pending-controls { display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; justify-content: space-between; }
         
         .scroll-list { max-height: 400px; overflow-y: auto; padding-right: 10px; }
         #cancelEditBtn { background: rgba(255,255,255,0.1); color: white; display: none; }
@@ -39,37 +42,56 @@
     
     <div class="admin-box" style="border-color: #00ff88;">
         <h2 style="color: #00ff88;">PENDING PLAYS QUEUE</h2>
-        <input type="password" id="queueAdminKey" placeholder="Admin Key (Required to Approve/Reject)">
+        <input type="password" id="queueAdminKey" placeholder="Admin Key (Required to Grade)">
         <div id="pendingList" class="scroll-list"></div>
     </div>
 
     <div class="admin-box">
         <h2 id="formTitle">MANUAL OVERRIDE (ADD/EDIT)</h2>
-        <form id="playForm" action="/admin/add-play" method="POST">
+        <form id="playForm">
             <input type="hidden" id="editId" name="editId">
             <input type="password" id="adminPassword" name="password" placeholder="Admin Key" required>
+            
             <label>Play Date</label>
             <input type="date" name="customDate" id="datePicker" required>
+            
             <label>Tier</label>
             <select name="tier" id="tierSelect">
                 <option value="PROPHET ELITE">PROPHET ELITE</option>
                 <option value="MAX PROPHET">MAX PROPHET</option>
             </select>
+            
             <label>Sport</label>
             <select name="league" id="leagueSelect">
                 <option value="MLB">MLB</option><option value="NBA">NBA</option><option value="NCAAB">NCAAB</option>
                 <option value="NCAAF">NCAAF</option><option value="NFL">NFL</option><option value="NHL">NHL</option>
             </select>
+            
             <input type="text" name="matchup" id="matchupInput" placeholder="Matchup (e.g. Yankees vs Astros)" required>
             <input type="text" name="pick" id="pickInput" placeholder="Pick (e.g. Yankees ML)" required>
             <input type="text" name="odds" id="oddsInput" placeholder="Odds (e.g. -110)" required>
-            <label>Units</label>
-            <select name="units" id="unitsSelect">
-                <option value="1.0">1.0u</option><option value="1.25">1.25u</option><option value="1.5">1.5u</option>
-                <option value="1.75">1.75u</option><option value="2.0">2.0u</option>
-                <option value="-1.0">-1.0u (Loss)</option><option value="-1.25">-1.25u (Loss)</option>
-                <option value="-1.5">-1.5u (Loss)</option><option value="-1.75">-1.75u (Loss)</option><option value="-2.0">-2.0u (Loss)</option>
-            </select>
+            
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label>Risk Units</label>
+                    <select name="risk" id="riskSelect">
+                        <option value="1.0">1.0u</option>
+                        <option value="1.25">1.25u</option>
+                        <option value="1.5">1.5u</option>
+                        <option value="1.75">1.75u</option>
+                        <option value="2.0">2.0u</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label>Result</label>
+                    <select name="outcome" id="outcomeSelect">
+                        <option value="win">WIN</option>
+                        <option value="loss">LOSS</option>
+                        <option value="push">PUSH</option>
+                    </select>
+                </div>
+            </div>
+            
             <button type="submit" id="submitBtn">Deploy to Scorecard</button>
             <button type="button" id="cancelEditBtn" onclick="cancelEdit()">Cancel Edit</button>
         </form>
@@ -86,7 +108,7 @@
         let allPlays = [];
         let pendingPlays = [];
 
-        // LOAD PENDING PLAYS
+        // 1. LOAD PENDING PLAYS (1-Click Grading)
         async function loadPendingPlays() {
             const res = await fetch('/api/scorecard');
             const data = await res.json();
@@ -110,41 +132,41 @@
                             <strong>${p.date}</strong> | ${p.league || p.sport} | ${p.tier}<br>
                             ${matchup} <br>
                             <span style="opacity: 0.7;">${p.pick} [${juice}]</span><br>
-                            <span style="color: #00d2ff; font-size: 0.75rem;">Risk: ${unitBase}u</span>
+                            <span style="color: #00d2ff; font-size: 0.85rem; font-weight: bold;">Risk: ${unitBase}u</span>
                         </div>
                     </div>
                     <div class="pending-controls">
-                        <select id="pendingUnit_${index}">
-                            <option value="${unitBase}">WIN (+${unitBase}u)</option>
-                            <option value="0.0">PUSH (0.0u)</option>
-                            <option value="-${unitBase}" selected>LOSS (-${unitBase}u)</option>
-                        </select>
-                        <button class="approve-btn" onclick="approvePending(${index})">Approve</button>
-                        <button class="delete-btn" onclick="deletePending(${index})">Reject</button>
+                        <button class="btn-win" onclick="approvePending(${index}, ${unitBase})">WIN</button>
+                        <button class="btn-push" onclick="approvePending(${index}, 0)">PUSH</button>
+                        <button class="btn-loss" onclick="approvePending(${index}, -${unitBase})">LOSS</button>
+                        <button class="edit-btn" style="background: rgba(255,0,0,0.2);" onclick="deletePending(${index})">Del</button>
                     </div>
                 </div>
             `}).join('');
         }
 
-        async function approvePending(index) {
+        async function approvePending(index, finalUnits) {
             const password = document.getElementById('queueAdminKey').value;
             if (!password) { alert('Enter Admin Key to authorize.'); return; }
-            const units = document.getElementById(`pendingUnit_${index}`).value;
             
             const res = await fetch(`/admin/approve-pending/${index}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password, units })
+                body: JSON.stringify({ password, units: finalUnits })
             });
 
-            if (res.ok) { loadPendingPlays(); loadAdminPlays(); } 
-            else { alert('Failed. Incorrect Admin Key?'); }
+            if (res.ok) { 
+                loadPendingPlays(); 
+                loadAdminPlays(); 
+            } else { 
+                alert('Failed. Incorrect Admin Key?'); 
+            }
         }
 
         async function deletePending(index) {
             const password = document.getElementById('queueAdminKey').value;
             if (!password) { alert('Enter Admin Key to authorize.'); return; }
-            if (!confirm('Reject and delete this pending play?')) return;
+            if (!confirm('Reject and permanently delete this pending play?')) return;
 
             const res = await fetch(`/admin/delete-pending/${index}`, {
                 method: 'DELETE',
@@ -156,7 +178,7 @@
             else { alert('Failed. Incorrect Admin Key?'); }
         }
 
-        // LOAD OFFICIAL PLAYS
+        // 2. LOAD OFFICIAL PLAYS
         async function loadAdminPlays() {
             const res = await fetch('/api/plays');
             allPlays = await res.json();
@@ -170,32 +192,47 @@
                         <div class="play-details">
                             <strong>${p.date}</strong> | ${p.league} | ${p.tier}<br>
                             ${p.matchup} <br>
-                            <span style="opacity: 0.7;">${p.pick} (${p.units}u) [${p.odds}]</span>
+                            <span style="opacity: 0.7;">${p.pick}</span><br>
+                            <span style="${p.units > 0 ? 'color:#00ff88;' : p.units < 0 ? 'color:#ff4444;' : 'color:#9d50bb;'} font-weight:bold;">${p.units > 0 ? '+' : ''}${p.units}u</span> <span style="opacity:0.5;">[${p.odds}]</span>
                         </div>
                         <div class="action-buttons">
                             <button class="edit-btn" onclick="startEdit(${p.id})">Edit</button>
-                            <button class="delete-btn" onclick="deletePlay(${p.id})">Del</button>
+                            <button class="btn-loss" onclick="deletePlay(${p.id})">Del</button>
                         </div>
                     </div>
                 </div>
             `).join('');
         }
 
-        // EDIT & DELETE LOGIC (SAME AS BEFORE)
+        // 3. EDIT & ADD LOGIC (With Auto-Calculation)
         function startEdit(id) {
             const play = allPlays.find(p => p.id === id);
             if (!play) return;
+            
             document.getElementById('editId').value = play.id;
             document.getElementById('formTitle').innerText = "EDIT PLAY";
             document.getElementById('submitBtn').innerText = "Update Scorecard";
             document.getElementById('cancelEditBtn').style.display = "block";
+            
             document.getElementById('datePicker').value = play.date;
             document.getElementById('tierSelect').value = play.tier;
             document.getElementById('leagueSelect').value = play.league;
             document.getElementById('matchupInput').value = play.matchup;
             document.getElementById('pickInput').value = play.pick;
             document.getElementById('oddsInput').value = play.odds || "-110";
-            document.getElementById('unitsSelect').value = play.units.toString();
+            
+            // Map units to Risk & Outcome dropdowns safely
+            const absUnits = Math.abs(play.units) || 1.0;
+            let outcome = "push";
+            if (play.units > 0) outcome = "win";
+            else if (play.units < 0) outcome = "loss";
+            
+            const riskSelect = document.getElementById('riskSelect');
+            riskSelect.value = absUnits.toString();
+            if (!riskSelect.value) riskSelect.value = absUnits.toFixed(1) + (Number.isInteger(absUnits) ? '.0' : ''); // Fallback matching
+            
+            document.getElementById('outcomeSelect').value = outcome;
+            
             const actionKey = document.getElementById('actionAdminKey').value;
             if (actionKey) document.getElementById('adminPassword').value = actionKey;
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -211,22 +248,37 @@
         }
 
         document.getElementById('playForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Auto-calculate final units based on risk & outcome
+            let finalUnits = parseFloat(data.risk);
+            if (data.outcome === 'loss') finalUnits = -finalUnits;
+            else if (data.outcome === 'push') finalUnits = 0.0;
+            data.units = finalUnits;
+
             const editId = document.getElementById('editId').value;
-            if (editId) {
-                e.preventDefault(); 
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData.entries());
-                const res = await fetch(`/admin/edit-play/${editId}`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-                });
-                if (res.ok) { cancelEdit(); loadAdminPlays(); alert('Updated!'); } 
-                else { alert('Update failed. Incorrect Admin Key?'); }
+            const url = editId ? `/admin/edit-play/${editId}` : `/admin/add-play`;
+            const method = editId ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (res.ok) { 
+                cancelEdit(); 
+                loadAdminPlays(); 
+            } else { 
+                alert('Action failed. Incorrect Admin Key?'); 
             }
         });
 
         async function deletePlay(id) {
             const password = document.getElementById('actionAdminKey').value;
-            if (!password) { alert('Enter Admin Key to authorize.'); return; }
+            if (!password) { alert('Enter Admin Key in MANAGE DATA section to authorize.'); return; }
             if (!confirm('Permanently delete this play?')) return;
             const res = await fetch(`/admin/delete-play/${id}`, {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password })
@@ -234,7 +286,6 @@
             if (res.ok) { loadAdminPlays(); } else { alert('Failed. Incorrect Admin Key?'); }
         }
 
-        // INITIALIZE
         loadPendingPlays();
         loadAdminPlays();
     </script>
