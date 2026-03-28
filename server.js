@@ -69,7 +69,7 @@ app.post('/api/generate-play', async (req, res) => {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-haiku-20241022', // Updated to the active, current Haiku model
+                model: 'claude-sonnet-4-5-20250929', // Upgraded to the active 2026 Sonnet 4.5 model
                 max_tokens: 300,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: rawText }]
@@ -151,48 +151,3 @@ app.post('/admin/approve-pending/:index', (req, res) => {
         let pendingPlays = data.pending_plays || [];
         
         if (index >= 0 && index < pendingPlays.length) {
-            const play = pendingPlays[index];
-            let plays = [];
-            if (fs.existsSync(DATA_PATH)) { plays = JSON.parse(fs.readFileSync(DATA_PATH)); }
-            
-            plays.push({
-                id: Date.now(),
-                date: play.date,
-                league: play.league || play.sport,
-                tier: play.tier.toUpperCase().includes('ELITE') ? 'PROPHET ELITE' : 'MAX PROPHET',
-                matchup: play.away_team && play.home_team ? `${play.away_team} @ ${play.home_team}` : play.matchup || play.pick,
-                pick: play.pick,
-                odds: play.juice ? play.juice.toString() : (play.odds || "-110"),
-                units: parseFloat(units)
-            });
-            fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
-
-            pendingPlays.splice(index, 1);
-            data.pending_plays = pendingPlays;
-            fs.writeFileSync(PENDING_PATH, JSON.stringify(data, null, 2));
-            
-            return res.status(200).send('Approved');
-        }
-    }
-    res.status(404).send('Not found');
-});
-
-app.delete('/admin/delete-pending/:index', (req, res) => {
-    const { password } = req.body;
-    const index = parseInt(req.params.index);
-    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
-
-    if (fs.existsSync(PENDING_PATH)) {
-        let data = JSON.parse(fs.readFileSync(PENDING_PATH));
-        let pendingPlays = data.pending_plays || [];
-        if (index >= 0 && index < pendingPlays.length) {
-            pendingPlays.splice(index, 1);
-            data.pending_plays = pendingPlays;
-            fs.writeFileSync(PENDING_PATH, JSON.stringify(data, null, 2));
-            return res.status(200).send('Deleted');
-        }
-    }
-    res.status(404).send('Not found');
-});
-
-app.listen(PORT, "0.0.0.0", () => { console.log('Syndicate Engine Active'); });
