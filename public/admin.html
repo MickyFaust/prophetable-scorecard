@@ -9,8 +9,8 @@
         .admin-box { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 500px; margin-bottom: 30px; backdrop-filter: blur(10px); }
         h2 { color: #00d2ff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-align: center; font-size: 1.2rem; }
         label { display: block; margin: 10px 0 5px; font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; }
-        input, select, button { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
-        input, select { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        input, select, button, textarea { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
+        input, select, textarea { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-family: sans-serif; }
         button { background: #00d2ff; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #0099ff; transform: translateY(-2px); }
         
@@ -18,27 +18,31 @@
         .play-item-row { display: flex; justify-content: space-between; align-items: center; }
         .play-details { font-size: 0.85rem; }
         .play-details strong { color: #00d2ff; }
-        .action-buttons { display: flex; gap: 8px; }
         
-        /* 1-Click Grading Buttons */
         .btn-win { background: #00ff88; color: black; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
-        .btn-win:hover { background: #00cc6a; }
         .btn-push { background: #9d50bb; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
-        .btn-push:hover { background: #7a3e93; }
         .btn-loss { background: #ff4444; color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; font-weight: bold; }
-        .btn-loss:hover { background: #cc0000; }
-        
         .edit-btn { background: rgba(255,255,255,0.1); color: white; width: auto; padding: 8px 15px; margin: 0; border-radius: 6px; font-size: 0.8rem; }
-        .edit-btn:hover { background: rgba(255,255,255,0.2); }
         
         .pending-controls { display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; justify-content: space-between; }
-        
         .scroll-list { max-height: 400px; overflow-y: auto; padding-right: 10px; }
-        #cancelEditBtn { background: rgba(255,255,255,0.1); color: white; display: none; }
-        #cancelEditBtn:hover { background: rgba(255,255,255,0.2); }
+        
+        /* Loading Spinner */
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #00d2ff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+    <div class="admin-box" style="border-color: #9d50bb;">
+        <h2 style="color: #9d50bb;">THE DROP ZONE (AI GENERATOR)</h2>
+        <input type="password" id="aiAdminKey" placeholder="Admin Key" required>
+        <textarea id="rawPlayText" rows="6" placeholder="Paste your raw Python output or messy notes here..."></textarea>
+        <button type="button" id="aiGenerateBtn" onclick="generateAIPlay()" style="background: #9d50bb; color: white;">
+            <span id="btnText">AI Generate & Send to Queue</span>
+            <div class="loader" id="aiLoader"></div>
+        </button>
+    </div>
     
     <div class="admin-box" style="border-color: #00ff88;">
         <h2 style="color: #00ff88;">PENDING PLAYS QUEUE</h2>
@@ -75,25 +79,20 @@
                 <div style="flex: 1;">
                     <label>Risk Units</label>
                     <select name="risk" id="riskSelect">
-                        <option value="1.0">1.0u</option>
-                        <option value="1.25">1.25u</option>
-                        <option value="1.5">1.5u</option>
-                        <option value="1.75">1.75u</option>
-                        <option value="2.0">2.0u</option>
+                        <option value="1.0">1.0u</option><option value="1.25">1.25u</option><option value="1.5">1.5u</option>
+                        <option value="1.75">1.75u</option><option value="2.0">2.0u</option>
                     </select>
                 </div>
                 <div style="flex: 1;">
                     <label>Result</label>
                     <select name="outcome" id="outcomeSelect">
-                        <option value="win">WIN</option>
-                        <option value="loss">LOSS</option>
-                        <option value="push">PUSH</option>
+                        <option value="win">WIN</option><option value="loss">LOSS</option><option value="push">PUSH</option>
                     </select>
                 </div>
             </div>
             
             <button type="submit" id="submitBtn">Deploy to Scorecard</button>
-            <button type="button" id="cancelEditBtn" onclick="cancelEdit()">Cancel Edit</button>
+            <button type="button" id="cancelEditBtn" onclick="cancelEdit()" style="background: rgba(255,255,255,0.1); display: none;">Cancel Edit</button>
         </form>
     </div>
 
@@ -108,17 +107,42 @@
         let allPlays = [];
         let pendingPlays = [];
 
-        // 1. LOAD PENDING PLAYS (1-Click Grading)
+        // --- THE AI DROP ZONE ---
+        async function generateAIPlay() {
+            const password = document.getElementById('aiAdminKey').value;
+            const rawText = document.getElementById('rawPlayText').value;
+            
+            if (!password || !rawText) { alert("Admin Key and raw text required."); return; }
+            
+            document.getElementById('btnText').style.display = 'none';
+            document.getElementById('aiLoader').style.display = 'block';
+            
+            const res = await fetch('/api/generate-play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password, rawText })
+            });
+            
+            document.getElementById('btnText').style.display = 'block';
+            document.getElementById('aiLoader').style.display = 'none';
+            
+            if (res.ok) {
+                document.getElementById('rawPlayText').value = '';
+                alert("Play Generated and sent to Queue!");
+                loadPendingPlays(); // Refresh queue instantly
+            } else {
+                alert("AI Generation failed. Check Admin Key or Railway Env Vars.");
+            }
+        }
+
+        // --- PENDING QUEUE ---
         async function loadPendingPlays() {
             const res = await fetch('/api/scorecard');
             const data = await res.json();
             pendingPlays = data.pending_plays || [];
             const list = document.getElementById('pendingList');
             
-            if (pendingPlays.length === 0) {
-                list.innerHTML = "<p style='text-align:center; opacity:0.5;'>No pending plays.</p>";
-                return;
-            }
+            if (pendingPlays.length === 0) { list.innerHTML = "<p style='text-align:center; opacity:0.5;'>No pending plays.</p>"; return; }
 
             list.innerHTML = pendingPlays.map((p, index) => {
                 const matchup = (p.away_team && p.home_team) ? `${p.away_team} @ ${p.home_team}` : p.matchup || p.pick;
@@ -146,39 +170,24 @@
         }
 
         async function approvePending(index, finalUnits) {
-            const password = document.getElementById('queueAdminKey').value;
+            const password = document.getElementById('queueAdminKey').value || document.getElementById('actionAdminKey').value;
             if (!password) { alert('Enter Admin Key to authorize.'); return; }
-            
             const res = await fetch(`/admin/approve-pending/${index}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password, units: finalUnits })
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, units: finalUnits })
             });
-
-            if (res.ok) { 
-                loadPendingPlays(); 
-                loadAdminPlays(); 
-            } else { 
-                alert('Failed. Incorrect Admin Key?'); 
-            }
+            if (res.ok) { loadPendingPlays(); loadAdminPlays(); } else { alert('Failed. Incorrect Admin Key?'); }
         }
 
         async function deletePending(index) {
-            const password = document.getElementById('queueAdminKey').value;
+            const password = document.getElementById('queueAdminKey').value || document.getElementById('actionAdminKey').value;
             if (!password) { alert('Enter Admin Key to authorize.'); return; }
-            if (!confirm('Reject and permanently delete this pending play?')) return;
-
             const res = await fetch(`/admin/delete-pending/${index}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+                method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password })
             });
-
-            if (res.ok) { loadPendingPlays(); } 
-            else { alert('Failed. Incorrect Admin Key?'); }
+            if (res.ok) { loadPendingPlays(); } else { alert('Failed.'); }
         }
 
-        // 2. LOAD OFFICIAL PLAYS
+        // --- MANAGE OFFICIAL PLAYS & EDIT LOGIC ---
         async function loadAdminPlays() {
             const res = await fetch('/api/plays');
             allPlays = await res.json();
@@ -204,11 +213,9 @@
             `).join('');
         }
 
-        // 3. EDIT & ADD LOGIC (With Auto-Calculation)
         function startEdit(id) {
             const play = allPlays.find(p => p.id === id);
             if (!play) return;
-            
             document.getElementById('editId').value = play.id;
             document.getElementById('formTitle').innerText = "EDIT PLAY";
             document.getElementById('submitBtn').innerText = "Update Scorecard";
@@ -221,20 +228,15 @@
             document.getElementById('pickInput').value = play.pick;
             document.getElementById('oddsInput').value = play.odds || "-110";
             
-            // Map units to Risk & Outcome dropdowns safely
             const absUnits = Math.abs(play.units) || 1.0;
             let outcome = "push";
-            if (play.units > 0) outcome = "win";
-            else if (play.units < 0) outcome = "loss";
+            if (play.units > 0) outcome = "win"; else if (play.units < 0) outcome = "loss";
             
             const riskSelect = document.getElementById('riskSelect');
             riskSelect.value = absUnits.toString();
-            if (!riskSelect.value) riskSelect.value = absUnits.toFixed(1) + (Number.isInteger(absUnits) ? '.0' : ''); // Fallback matching
+            if (!riskSelect.value) riskSelect.value = absUnits.toFixed(1) + (Number.isInteger(absUnits) ? '.0' : ''); 
             
             document.getElementById('outcomeSelect').value = outcome;
-            
-            const actionKey = document.getElementById('actionAdminKey').value;
-            if (actionKey) document.getElementById('adminPassword').value = actionKey;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -251,39 +253,26 @@
             e.preventDefault(); 
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
-            
-            // Auto-calculate final units based on risk & outcome
             let finalUnits = parseFloat(data.risk);
             if (data.outcome === 'loss') finalUnits = -finalUnits;
             else if (data.outcome === 'push') finalUnits = 0.0;
             data.units = finalUnits;
 
             const editId = document.getElementById('editId').value;
-            const url = editId ? `/admin/edit-play/${editId}` : `/admin/add-play`;
-            const method = editId ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+            const res = await fetch(editId ? `/admin/edit-play/${editId}` : `/admin/add-play`, {
+                method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
             });
-            
-            if (res.ok) { 
-                cancelEdit(); 
-                loadAdminPlays(); 
-            } else { 
-                alert('Action failed. Incorrect Admin Key?'); 
-            }
+            if (res.ok) { cancelEdit(); loadAdminPlays(); } else { alert('Action failed.'); }
         });
 
         async function deletePlay(id) {
             const password = document.getElementById('actionAdminKey').value;
-            if (!password) { alert('Enter Admin Key in MANAGE DATA section to authorize.'); return; }
+            if (!password) { alert('Enter Admin Key to authorize.'); return; }
             if (!confirm('Permanently delete this play?')) return;
             const res = await fetch(`/admin/delete-play/${id}`, {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password })
             });
-            if (res.ok) { loadAdminPlays(); } else { alert('Failed. Incorrect Admin Key?'); }
+            if (res.ok) { loadAdminPlays(); } else { alert('Failed.'); }
         }
 
         loadPendingPlays();
