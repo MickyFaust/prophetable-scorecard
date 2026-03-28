@@ -8,6 +8,9 @@ const PASSWORD = 'Dravrah1!1';
 const DATA_PATH = '/app/data/plays.json';
 const PENDING_PATH = '/app/data/pending.json';
 
+// Make sure to add this key in your Railway project settings!
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY; 
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
@@ -19,8 +22,7 @@ app.get('/api/plays', (req, res) => {
     } else { res.json([]); }
 });
 
-// --- PYTHON BOT INTEGRATION ROUTES ---
-// The Python bots hit this to read and write pending plays
+// --- PENDING QUEUE ROUTES ---
 app.get('/api/scorecard', (req, res) => {
     if (fs.existsSync(PENDING_PATH)) {
         try { res.json(JSON.parse(fs.readFileSync(PENDING_PATH))); } catch (e) { res.json({ pending_plays: [] }); }
@@ -28,17 +30,69 @@ app.get('/api/scorecard', (req, res) => {
 });
 
 app.post('/api/scorecard', (req, res) => {
-    // Python bot uses Bearer token, web frontend uses body password
     const authHeader = req.headers.authorization;
     if (authHeader !== `Bearer ${PASSWORD}` && req.body.password !== PASSWORD) {
         return res.status(401).send('Unauthorized');
     }
-    
     const dir = path.dirname(PENDING_PATH);
     if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-    
     fs.writeFileSync(PENDING_PATH, JSON.stringify(req.body, null, 2));
     res.status(200).send('Pending Queue Updated');
+});
+
+// --- THE AI GENERATOR (DROP ZONE) ---
+app.post('/api/generate-play', async (req, res) => {
+    const { password, rawText } = req.body;
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+    if (!ANTHROPIC_API_KEY) return res.status(500).send('API Key missing in Railway Environment Variables');
+
+    const systemPrompt = `You are The Prophet — Chief Quantitative Analyst. Follow Protocol 6.0. 
+    Extract the user's raw betting notes into a strict JSON object. Do not return any other text or markdown, ONLY valid JSON.
+    Format exactly like this:
+    {
+      "date": "YYYY-MM-DD",
+      "league": "NBA/MLB/NCAAB/NHL/NFL",
+      "tier": "PROPHET ELITE" or "MAX PROPHET",
+      "home_team": "Team A",
+      "away_team": "Team B",
+      "pick": "Team A -5",
+      "juice": "-110",
+      "unit_size": "1.5 Units"
+    }`;
+
+    try {
+        const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-haiku-20240307', // Fast model for data extraction
+                max_tokens: 300,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: rawText }]
+            })
+        });
+
+        const data = await aiResponse.json();
+        const extractedJson = JSON.parse(data.content[0].text);
+
+        // Load current pending queue and add the new AI-generated play
+        let pendingData = { pending_plays: [] };
+        if (fs.existsSync(PENDING_PATH)) {
+            pendingData = JSON.parse(fs.readFileSync(PENDING_PATH));
+        }
+        
+        pendingData.pending_plays.push(extractedJson);
+        fs.writeFileSync(PENDING_PATH, JSON.stringify(pendingData, null, 2));
+
+        res.status(200).json(extractedJson);
+    } catch (err) {
+        console.error("AI Generation Error:", err);
+        res.status(500).send('Failed to generate play from AI.');
+    }
 });
 
 // --- ADMIN ROUTES (ADD, EDIT, DELETE OFFICIAL PLAYS) ---
@@ -94,7 +148,6 @@ app.post('/admin/approve-pending/:index', (req, res) => {
             let plays = [];
             if (fs.existsSync(DATA_PATH)) { plays = JSON.parse(fs.readFileSync(DATA_PATH)); }
             
-            // Format for official scorecard
             plays.push({
                 id: Date.now(),
                 date: play.date,
@@ -107,7 +160,6 @@ app.post('/admin/approve-pending/:index', (req, res) => {
             });
             fs.writeFileSync(DATA_PATH, JSON.stringify(plays, null, 2));
 
-            // Remove from queue
             pendingPlays.splice(index, 1);
             data.pending_plays = pendingPlays;
             fs.writeFileSync(PENDING_PATH, JSON.stringify(data, null, 2));
@@ -126,7 +178,6 @@ app.delete('/admin/delete-pending/:index', (req, res) => {
     if (fs.existsSync(PENDING_PATH)) {
         let data = JSON.parse(fs.readFileSync(PENDING_PATH));
         let pendingPlays = data.pending_plays || [];
-        
         if (index >= 0 && index < pendingPlays.length) {
             pendingPlays.splice(index, 1);
             data.pending_plays = pendingPlays;
