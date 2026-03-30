@@ -429,6 +429,10 @@ INTERNAL ANALYSIS INSTRUCTIONS (do not narrate — do all of this silently, then
      : `Rank 1-${slotsNeeded <= 2 ? slotsNeeded : 2} → PROPHET ELITE | Rank ${slotsNeeded <= 2 ? slotsNeeded+1 : 3}-${slotsNeeded} → MAX PROPHET | All others → CUT`}
    CRITICAL: Include EVERY analyzed pick in all_picks — not just the top ${slotsNeeded}. Ranks ${slotsNeeded + 1}+ get tier: "CUT". This is required for the backup pool.
 
+   Set units based on UEM score (use exact values):
+   UEM ≥ 4.0 → "2.0u"  | UEM 3.0–3.99 → "1.75u" | UEM 2.0–2.99 → "1.5u"
+   UEM 1.5–1.99 → "1.25u" | UEM < 1.5 → "1.0u"
+
 5. For PLAYER PROP picks include player_name and prop_market from these Odds API keys:
    NBA: player_points | player_rebounds | player_assists | player_steals | player_threes | player_blocks | player_turnovers | player_points_rebounds_assists | player_points_rebounds | player_points_assists | player_rebounds_assists | player_steals_blocks | player_first_basket
    NFL: player_pass_yds | player_pass_tds | player_rush_yds | player_reception_yds | player_receptions | player_anytime_td
