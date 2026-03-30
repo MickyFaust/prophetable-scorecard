@@ -494,7 +494,9 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
             });
             const selData = await sel.json();
             if (!sel.ok) { cleanup(); return fail(`Anthropic Error (selection): ${selData.error?.message}`); }
-            const selText = selData.content.find(b => b.type === 'text');
+            // Use LAST text block — Claude emits intermediate reasoning texts during web_search
+            // before the final JSON response. find() grabs the first one (wrong).
+            const selText = [...(selData.content || [])].reverse().find(b => b.type === 'text');
             if (!selText) { cleanup(); return fail('No selection response from AI'); }
 
             let raw = selText.text;
