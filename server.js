@@ -511,6 +511,28 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
 
             // ── Server-side juice cap (-125 hard limit — Claude ignores this sometimes) ──
             allPicks = applyJuiceCap(allPicks);
+
+            // ── Auto-backfill: if juice cap cut selected picks, promote next-best from CUT pool ──
+            const target = isProp ? 2 : 4;
+            const afterCap = allPicks.filter(p => p.tier !== 'CUT');
+            if (afterCap.length < target) {
+                const deficit  = target - afterCap.length;
+                // Eligible = CUT picks that were NOT cut by juice cap (no cut_reason = Claude ranked them)
+                const eligible = allPicks
+                    .filter(p => p.tier === 'CUT' && !p.cut_reason)
+                    .sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
+                for (let i = 0; i < Math.min(deficit, eligible.length); i++) {
+                    eligible[i].tier = 'PROMOTED'; // temp flag
+                }
+            }
+            // Re-rank all non-CUT picks by UEM and assign final tiers
+            const finalSelected = allPicks
+                .filter(p => p.tier !== 'CUT')
+                .sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
+            finalSelected.forEach((p, i) => {
+                p.tier = i < 2 ? 'PROPHET ELITE' : 'MAX PROPHET';
+                p.rank = i + 1;
+            });
         }
 
         const selected  = allPicks.filter(p => p.tier !== 'CUT');
