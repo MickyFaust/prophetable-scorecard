@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prophet Engine | Drop Zone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1b2a;
+            --card: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.08);
+            --accent: #00d2ff;
+            --purple: #9d50bb;
+            --success: #00ff88;
+            --danger: #ff4444;
+            --text: #ffffff;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: radial-gradient(circle at top right, #112240, var(--bg));
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0; padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 860px; margin: 0 auto; }
+
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; }
+        .logo { font-weight: 900; font-size: 1.4rem; letter-spacing: -1px; text-transform: uppercase; }
+        .logo span { color: var(--accent); }
+        .nav-links { display: flex; gap: 10px; }
+        .nav-btn { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); border: 1px solid var(--border); padding: 8px 18px; border-radius: 20px; font-size: 0.78rem; text-decoration: none; font-weight: 600; letter-spacing: 0.5px; }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 20px; }
+        .card-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+        .card-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+        label { font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.5; display: block; margin-bottom: 6px; }
+        input, select, textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: white;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus { border-color: var(--accent); }
+        textarea { resize: vertical; line-height: 1.6; }
+
+        /* ── DRAG-DROP ZONE ── */
+        .drop-zone {
+            border: 2px dashed rgba(0, 210, 255, 0.3);
+            border-radius: 14px;
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(0, 210, 255, 0.03);
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(0, 210, 255, 0.07);
+        }
+        .drop-zone.drag-over { transform: scale(1.01); }
+        .drop-zone.has-images { border-style: solid; border-color: rgba(0, 210, 255, 0.4); }
+        .drop-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .drop-title { font-size: 1rem; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 6px; }
+        .drop-sub { font-size: 0.75rem; opacity: 0.5; }
+        .drop-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+        .image-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+        .img-thumb { position: relative; width: 100px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,210,255,0.3); }
+        .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .img-remove { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.75); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+        .img-remove:hover { background: var(--danger); }
+        .img-count-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,210,255,0.15); border: 1px solid rgba(0,210,255,0.3); color: var(--accent); font-size: 0.72rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 10px; }
+
+        .run-btn { width: 100%; padding: 18px; background: linear-gradient(135deg, #00d2ff, #0099ff); color: #000; font-weight: 900; font-size: 1.05rem; letter-spacing: 2px; text-transform: uppercase; border: none; border-radius: 12px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
+        .run-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,210,255,0.3); }
+        .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .spinner { width: 20px; height: 20px; border: 3px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .status-log { display: none; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,210,255,0.2); border-radius: 10px; padding: 16px 20px; font-size: 0.8rem; line-height: 1.8; color: rgba(255,255,255,0.7); font-family: monospace; margin-bottom: 20px; }
+        .status-log .line { display: flex; align-items: center; gap: 8px; }
+        .status-log .ping { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite; flex-shrink: 0; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        #results-section { display: none; }
+
+        .picks-grid { display: flex; flex-direction: column; gap: 8px; }
+        .pick-row { display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.25); border-radius: 10px; padding: 12px 16px; border-left: 3px solid var(--border); }
+        .pick-row.tier-elite { border-left-color: var(--accent); }
+        .pick-row.tier-max { border-left-color: var(--purple); }
+        .pick-row.tier-cut { border-left-color: rgba(255,255,255,0.1); opacity: 0.5; }
+        .pick-rank { font-size: 1.4rem; font-weight: 900; width: 28px; text-align: center; }
+        .pick-info { flex: 1; }
+        .pick-info .pick-main { font-size: 0.95rem; font-weight: 700; }
+        .pick-info .pick-sub { font-size: 0.75rem; opacity: 0.6; margin-top: 2px; }
+        .pick-score { text-align: right; }
+        .pick-score .uem { font-size: 1.2rem; font-weight: 900; color: var(--accent); }
+        .pick-score .edge { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
+        .tier-badge { font-size: 0.65rem; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+        .badge-elite { background: rgba(0,210,255,0.15); color: var(--accent); border: 1px solid rgba(0,210,255,0.3); }
+        .badge-max { background: rgba(157,80,187,0.15); color: var(--purple); border: 1px solid rgba(157,80,187,0.3); }
+        .badge-cut { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); }
+
+        .report-block { background: rgba(0,0,0,0.4); border-radius: 12px; padding: 20px; position: relative; }
+        .report-block.elite-block { border: 1px solid rgba(0,210,255,0.25); }
+        .report-block.max-block { border: 1px solid rgba(157,80,187,0.25); }
+        .report-text { font-family: monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; color: rgba(255,255,255,0.85); margin: 0; }
+        .copy-btn { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; padding: 7px 16px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; transition: 0.2s; }
+        .copy-btn:hover { background: rgba(255,255,255,0.15); }
+        .copy-btn.copied { background: rgba(0,255,136,0.2); border-color: var(--success); color: var(--success); }
+
+        .section-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; opacity: 0.6; }
+        .meta-bar { display: flex; gap: 16px; flex-wrap: wrap; padding: 14px 18px; background: rgba(0,0,0,0.3); border-radius: 10px; margin-bottom: 20px; }
+        .meta-stat { text-align: center; }
+        .meta-stat .val { font-size: 1.4rem; font-weight: 900; }
+        .meta-stat .lbl { font-size: 0.65rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+        .meta-stat.accent .val { color: var(--accent); }
+        .meta-stat.success .val { color: var(--success); }
+        .meta-stat.purple .val { color: var(--purple); }
+
+        .error-banner { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--danger); border-radius: 10px; padding: 14px 18px; font-size: 0.88rem; margin-bottom: 16px; display: none; }
+        .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <nav class="nav">
+        <div class="logo">THE PROPHET <span>ENGINE</span></div>
+        <div class="nav-links">
+            <a href="/" class="nav-btn">← Scoreboard</a>
+            <a href="/hub.html" class="nav-btn">⬡ Hub</a>
+            <a href="/admin.html" class="nav-btn">📋 Admin</a>
+            <a href="https://prophetable-production.up.railway.app/login" target="_blank" class="nav-btn" style="color:#9d50bb; border-color:rgba(157,80,187,0.3); background:rgba(157,80,187,0.08);">⚡ Console</a>
+        </div>
+    </nav>
+
+    <!-- MODE TOGGLE -->
+    <div style="display:flex; gap:12px; margin-bottom:20px;">
+        <button id="modeMorning" onclick="setMode('morning')" style="flex:1; padding:16px; border-radius:12px; border:2px solid var(--accent); background:rgba(0,210,255,0.12); color:var(--accent); font-family:'Inter',sans-serif; font-weight:900; font-size:0.85rem; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:0.2s;">
+            🌅 MORNING REPORT<br><span style="font-size:0.65rem; font-weight:600; opacity:0.7; letter-spacing:1px;">2 ELITE · 2 MAX</span>
+        </button>
+        <button id="modeProp" onclick="setMode('prop')" style="flex:1; padding:16px; border-radius:12px; border:2px solid var(--border); background:var(--card); color:rgba(255,255,255,0.4); font-family:'Inter',sans-serif; font-weight:900; font-size:0.85rem; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:0.2s;">
+            🎯 PROP REPORT<br><span style="font-size:0.65rem; font-weight:600; opacity:0.7; letter-spacing:1px;">1 ELITE · 1 MAX</span>
+        </button>
+    </div>
+
+    <div class="card" style="border-color: rgba(0,210,255,0.2);">
+        <div class="card-title" style="color: var(--accent);">
+            <span class="dot" style="background: var(--accent);"></span>
+            Drop Zone — Screenshots &amp; Notes
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label>Date</label>
+            <input type="date" id="engineDate">
+        </div>
+
+        <!-- IMAGE DROP ZONE -->
+        <label>Screenshots (drag &amp; drop or click to select)</label>
+        <div class="drop-zone" id="dropZone">
+            <input type="file" class="drop-input" id="fileInput" accept="image/*" multiple>
+            <div class="drop-icon">📸</div>
+            <div class="drop-title">DROP SCREENSHOTS HERE</div>
+            <div class="drop-sub">Drag sportsbook screenshots, Twitter/X picks, anything — or click to browse<br>PNG · JPG · WEBP · Multiple files OK</div>
+            <div class="image-grid" id="imageGrid"></div>
+        </div>
+
+        <!-- TEXT NOTES (optional) -->
+        <div style="margin-bottom: 16px;">
+            <label>Additional Notes / Text Picks (optional)</label>
+            <textarea id="rawPicks" rows="5" placeholder="Any picks you want to add as text, or context for the screenshots. Leave blank if your screenshots have everything."></textarea>
+        </div>
+
+        <div id="errorBanner" class="error-banner"></div>
+
+        <button class="run-btn" id="runBtn" onclick="runEngine()">
+            <span id="btnText">🔮 RUN THE PROPHET ENGINE</span>
+            <div class="spinner" id="btnSpinner"></div>
+        </button>
+    </div>
+
+    <div id="statusLog" class="status-log">
+        <div class="line"><span class="ping"></span><span id="statusText">Initializing...</span></div>
+    </div>
+
+    <div id="results-section">
+        <div class="meta-bar">
+            <div class="meta-stat accent"><div class="val" id="meta-analyzed">—</div><div class="lbl">Analyzed</div></div>
+            <div class="meta-stat success"><div class="val" id="meta-selected">—</div><div class="lbl">Selected</div></div>
+            <div class="meta-stat purple"><div class="val" id="meta-top-uem">—</div><div class="lbl">Top UEM</div></div>
+            <div class="meta-stat" style="margin-left:auto;"><div class="val" style="font-size:0.9rem;opacity:0.6;" id="meta-date">—</div><div class="lbl">Report Date</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span class="dot" style="background:rgba(255,255,255,0.3);"></span>All Picks — Ranked by UEM Score</div>
+            <div id="picksGrid" class="picks-grid"></div>
+        </div>
+
+        <!-- ── SEND TO QUEUE ── -->
+        <div style="background:rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.2); border-radius:16px; padding:22px; margin-bottom:24px;">
+            <div style="font-size:0.7rem; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; color:var(--success); margin-bottom:6px;">● Send to Admin Queue</div>
+            <div style="font-size:0.75rem; opacity:0.45; margin-bottom:18px;">Push picks to the grading queue in Admin — only what you choose gets sent</div>
+
+            <!-- Mode toggle -->
+            <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+                <button id="queueSendAll" onclick="queueMode('all')" style="flex:1; padding:13px 18px; border-radius:10px; border:2px solid var(--success); background:rgba(0,255,136,0.12); color:var(--success); font-family:'Inter',sans-serif; font-weight:800; font-size:0.8rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:0.2s;">
+                    📤 SEND ALL PICKS
+                </button>
+                <button id="queueSelect" onclick="queueMode('select')" style="flex:1; padding:13px 18px; border-radius:10px; border:2px solid var(--border); background:var(--card); color:rgba(255,255,255,0.4); font-family:'Inter',sans-serif; font-weight:800; font-size:0.8rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:0.2s;">
+                    ☑️ SELECT PICKS
+                </button>
+            </div>
+
+            <!-- Checkbox list (shown in select mode) -->
+            <div id="queueCheckList" style="display:none; margin-bottom:16px;">
+                <div id="queueCheckItems" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <!-- Confirm send button -->
+            <button id="queueConfirmBtn" onclick="sendToQueue()" style="display:none; width:100%; padding:14px; background:linear-gradient(135deg,#00ff88,#00cc66); color:#000; font-weight:900; font-size:0.9rem; letter-spacing:2px; text-transform:uppercase; border:none; border-radius:10px; cursor:pointer; transition:0.2s;">
+                ✅ CONFIRM — SEND TO QUEUE
+            </button>
+
+            <!-- Success banner -->
+            <div id="queueSuccess" style="display:none; background:rgba(0,255,136,0.12); border:1px solid rgba(0,255,136,0.3); border-radius:10px; padding:13px 16px; font-size:0.85rem; color:var(--success); font-weight:700; text-align:center;"></div>
+        </div>
+
+        <hr class="divider">
+
+        <div style="margin-bottom:20px;">
+            <div class="section-title" style="color:var(--accent);">● Prophet Elite Report — Copy to Community</div>
+            <div class="report-block elite-block">
+                <button class="copy-btn" onclick="copyReport('eliteReport', this)">Copy</button>
+                <pre id="eliteReport" class="report-text"></pre>
+            </div>
+        </div>
+
+        <div style="margin-bottom:28px;">
+            <div class="section-title" style="color:var(--purple);">● Max Prophet Report — Copy to Community</div>
+            <div class="report-block max-block">
+                <button class="copy-btn" onclick="copyReport('maxReport', this)">Copy</button>
+                <pre id="maxReport" class="report-text"></pre>
+            </div>
+        </div>
+
+        <!-- COMBINED OUTPUT BOX -->
+        <div style="background:rgba(0,0,0,0.5); border:2px solid rgba(0,210,255,0.4); border-radius:16px; padding:24px; margin-bottom:50px; box-shadow:0 0 40px rgba(0,210,255,0.08);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <div style="font-size:0.7rem; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; color:var(--accent);">● PROPHETABLE.TV — FULL REPORT OUTPUT</div>
+                    <div style="font-size:0.72rem; opacity:0.45; margin-top:4px;">Both reports combined — paste directly into your app</div>
+                </div>
+                <button id="copyAllBtn" onclick="copyAll(this)" style="background:linear-gradient(135deg,#00d2ff,#0099ff); color:#000; border:none; border-radius:10px; padding:12px 28px; font-size:0.85rem; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:0.2s; white-space:nowrap;">⬆ COPY ALL</button>
+            </div>
+            <pre id="combinedReport" style="font-family:monospace; font-size:0.83rem; line-height:1.75; white-space:pre-wrap; color:rgba(255,255,255,0.9); margin:0; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:18px; max-height:600px; overflow-y:auto;"></pre>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Gate: redirect to Hub if not authenticated
+    if (sessionStorage.getItem('prophetable_hub_auth') !== 'true') {
+        window.location.replace('/hub.html');
+    }
+
+    const ADMIN_KEY = '7663';
+    const SPORT_EMOJIS = { NBA:'🏀', MLB:'⚾', NCAAB:'🏀', NFL:'🏈', NHL:'🏒', default:'🎯' };
+
+    let currentMode = 'morning';
+    let currentAllPicks = [];
+
+    function setMode(mode) {
+        currentMode = mode;
+        const morning = document.getElementById('modeMorning');
+        const prop    = document.getElementById('modeProp');
+        if (mode === 'morning') {
+            morning.style.border = '2px solid var(--accent)';
+            morning.style.background = 'rgba(0,210,255,0.12)';
+            morning.style.color = 'var(--accent)';
+            prop.style.border = '2px solid var(--border)';
+            prop.style.background = 'var(--card)';
+            prop.style.color = 'rgba(255,255,255,0.4)';
+        } else {
+            prop.style.border = '2px solid var(--purple)';
+            prop.style.background = 'rgba(157,80,187,0.12)';
+            prop.style.color = 'var(--purple)';
+            morning.style.border = '2px solid var(--border)';
+            morning.style.background = 'var(--card)';
+            morning.style.color = 'rgba(255,255,255,0.4)';
+        }
+    }
+
+    document.getElementById('engineDate').valueAsDate = new Date();
+
+    // ── Image state ──────────────────────────────────────────────
+    let droppedImages = [];
+
+    const dropZone  = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const imageGrid = document.getElementById('imageGrid');
+
+    // iOS fix: the transparent fileInput overlay receives the native tap directly.
+    // Only call fileInput.click() if the drop zone div itself was tapped (not the input).
+    dropZone.addEventListener('click', e => {
+        if (e.target.classList.contains('img-remove')) return;
+        if (e.target === fileInput) return; // iOS tapped the input directly — don't double-trigger
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', e => {
+        // Snapshot files immediately — iOS clears the FileList if we wait
+        const files = Array.from(e.target.files || []);
+        e.target.value = ''; // Reset so the same photo can be re-selected
+        if (files.length) handleFiles(files);
+    });
+
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleFiles(Array.from(e.dataTransfer.files));
+    });
+
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => {
+        e.preventDefault();
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length) handleFiles(files);
+    });
+
+    function handleFiles(files) {
+        files.forEach(file => {
+            // Accept image/* MIME types plus iOS HEIC/HEIF by extension
+            const isImage = file.type.startsWith('image/') ||
+                            /\.(jpg|jpeg|png|webp|heic|heif|gif)$/i.test(file.name);
+            if (!isImage) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const dataUrl = ev.target.result;
+                const [header, base64] = dataUrl.split(',');
+                const mediaType = file.type || header.match(/:(.*?);/)[1];
+                droppedImages.push({ base64, mediaType, previewUrl: dataUrl, name: file.name });
+                renderPreviews();
+            };
+            reader.onerror = () => console.warn('FileReader error for', file.name);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderPreviews() {
+        const count = droppedImages.length;
+        dropZone.classList.toggle('has-images', count > 0);
+        if (count === 0) { imageGrid.innerHTML = ''; return; }
+        imageGrid.innerHTML = droppedImages.map((img, i) => `
+            <div class="img-thumb">
+                <img src="${img.previewUrl}" alt="${img.name}">
+                <button class="img-remove" onclick="removeImage(${i})">×</button>
+            </div>
+        `).join('') + `<div class="img-count-badge">📸 ${count} screenshot${count > 1 ? 's' : ''} ready</div>`;
+    }
+
+    function removeImage(index) {
+        droppedImages.splice(index, 1);
+        renderPreviews();
+    }
+
+    // ── Engine run ───────────────────────────────────────────────
+    function setStatus(msg) { document.getElementById('statusText').textContent = msg; }
+
+    async function runEngine() {
+        const rawPicks = document.getElementById('rawPicks').value.trim();
+        const date     = document.getElementById('engineDate').value;
+
+        document.getElementById('errorBanner').style.display = 'none';
+
+        if (droppedImages.length === 0 && rawPicks.length < 10) {
+            showError('Drop at least one screenshot, or paste some picks as text.');
+            return;
+        }
+
+        document.getElementById('runBtn').disabled = true;
+        document.getElementById('btnText').style.display = 'none';
+        document.getElementById('btnSpinner').style.display = 'block';
+        document.getElementById('statusLog').style.display = 'block';
+        document.getElementById('results-section').style.display = 'none';
+
+        setStatus(`Sending ${droppedImages.length > 0 ? droppedImages.length + ' screenshot(s)' : 'text picks'} to The Prophet...`);
+
+        try {
+            const res = await fetch('/api/engine-run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    password: ADMIN_KEY,
+                    rawPicks,
+                    date,
+                    mode: currentMode,
+                    images: droppedImages.map(i => ({ base64: i.base64, mediaType: i.mediaType }))
+                })
+            });
+
+            if (!res.ok) { throw new Error(await res.text()); }
+
+            // Read the SSE stream — server sends progress events then a final 'complete'
+            const reader  = res.body.getReader();
+            const decoder = new TextDecoder();
+            let   buffer  = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE lines are separated by \n\n
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop(); // keep incomplete chunk
+
+                for (const part of parts) {
+                    for (const line of part.split('\n')) {
+                        const trimmed = line.trim();
+                        if (!trimmed || trimmed.startsWith(':')) continue; // skip heartbeats/comments
+                        if (!trimmed.startsWith('data: ')) continue;
+                        const dataLine = trimmed.slice(6);
+                        let event;
+                        try { event = JSON.parse(dataLine); } catch (e) { continue; } // skip malformed, don't swallow real errors
+                        if (event.type === 'status') {
+                            setStatus(event.message);
+                        } else if (event.type === 'complete') {
+                            setStatus(`Done — ${event.picks_analyzed} picks analyzed, top ${event.picks_selected} selected.`);
+                            renderResults(event);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message); // propagates to outer catch → shows error banner
+                        }
+                    }
+                }
+            }
+
+        } catch (err) {
+            document.getElementById('statusLog').style.display = 'none';
+            showError(`Engine Error: ${err.message}`);
+        } finally {
+            document.getElementById('runBtn').disabled = false;
+            document.getElementById('btnText').style.display = 'inline';
+            document.getElementById('btnSpinner').style.display = 'none';
+        }
+    }
+
+    function renderResults(data) {
+        document.getElementById('meta-analyzed').textContent = data.picks_analyzed || '—';
+        const selectedPicks = (data.all_picks || []).filter(p => p.tier !== 'CUT');
+        document.getElementById('meta-selected').textContent = data.picks_selected || selectedPicks.length || '—';
+        document.getElementById('meta-date').textContent = data.date || '—';
+        if (data.all_picks && data.all_picks.length > 0) {
+            document.getElementById('meta-top-uem').textContent = data.all_picks[0].uem_score?.toFixed(2) || '—';
+        }
+
+        // Store non-CUT picks for the queue feature; reset queue UI
+        currentAllPicks = (data.all_picks || []).filter(p => p.tier !== 'CUT');
+        resetQueueUI();
+        buildQueueCheckboxes(currentAllPicks, data.date);
+
+        const picks = data.all_picks || [];
+        document.getElementById('picksGrid').innerHTML = picks.map((p, i) => {
+            const tierClass  = p.tier === 'PROPHET ELITE' ? 'tier-elite' : p.tier === 'MAX PROPHET' ? 'tier-max' : 'tier-cut';
+            const badgeClass = p.tier === 'PROPHET ELITE' ? 'badge-elite' : p.tier === 'MAX PROPHET' ? 'badge-max' : 'badge-cut';
+            const rankColor  = i < 2 ? 'var(--accent)' : i < 4 ? 'var(--purple)' : 'rgba(255,255,255,0.2)';
+            const emoji = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
+            const factors = Array.isArray(p.verified_factors) ? p.verified_factors.slice(0,2).join(' · ')
+                          : Array.isArray(p.key_factors) ? p.key_factors.slice(0,2).join(' · ') : '';
+            return `
+            <div class="pick-row ${tierClass}">
+                <div class="pick-rank" style="color:${rankColor}">${i+1}</div>
+                <div class="pick-info">
+                    <div class="pick-main">${emoji} ${p.pick} <span style="opacity:0.6;font-weight:400;">(${p.odds||'-110'})</span></div>
+                    <div class="pick-sub">${p.league} · ${p.matchup}${factors ? ' · '+factors : ''}</div>
+                </div>
+                <span class="tier-badge ${badgeClass}">${p.tier||'CUT'}</span>
+                <div class="pick-score">
+                    <div class="uem">${p.uem_score?.toFixed(2)||'—'}</div>
+                    <div class="edge">${p.edge_pct ? p.edge_pct+'%' : ''} edge</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        const elite = data.report_elite || '';
+        const max   = data.report_max   || '';
+        document.getElementById('eliteReport').textContent    = elite;
+        document.getElementById('maxReport').textContent      = max;
+        document.getElementById('combinedReport').textContent = elite + '\n\n' + max;
+        document.getElementById('results-section').style.display = 'block';
+        document.getElementById('results-section').scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+
+    function copyReport(id, btn) {
+        navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => {
+            btn.textContent = '✓ Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2500);
+        });
+    }
+
+    function copyAll(btn) {
+        navigator.clipboard.writeText(document.getElementById('combinedReport').textContent).then(() => {
+            btn.textContent = '✓ COPIED!';
+            btn.style.background = 'linear-gradient(135deg, #00ff88, #00cc66)';
+            setTimeout(() => {
+                btn.textContent = '⬆ COPY ALL';
+                btn.style.background = 'linear-gradient(135deg, #00d2ff, #0099ff)';
+            }, 2500);
+        });
+    }
+
+    // ── Send to Queue ────────────────────────────────────────────
+    function resetQueueUI() {
+        document.getElementById('queueCheckList').style.display = 'none';
+        document.getElementById('queueConfirmBtn').style.display = 'none';
+        document.getElementById('queueSuccess').style.display = 'none';
+        // Reset button styles
+        const btnAll = document.getElementById('queueSendAll');
+        const btnSel = document.getElementById('queueSelect');
+        btnAll.style.border = '2px solid var(--success)';
+        btnAll.style.background = 'rgba(0,255,136,0.12)';
+        btnAll.style.color = 'var(--success)';
+        btnSel.style.border = '2px solid var(--border)';
+        btnSel.style.background = 'var(--card)';
+        btnSel.style.color = 'rgba(255,255,255,0.4)';
+    }
+
+    function buildQueueCheckboxes(picks, date) {
+        const container = document.getElementById('queueCheckItems');
+        container.innerHTML = picks.map((p, i) => {
+            const emoji = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
+            const tierColor = p.tier === 'PROPHET ELITE' ? 'var(--accent)' : 'var(--purple)';
+            const unitLabel = p.units ? ` · ${p.units}` : '';
+            return `<label style="display:flex; align-items:center; gap:12px; background:rgba(0,0,0,0.25); border-radius:10px; padding:12px 14px; cursor:pointer; border:1px solid rgba(255,255,255,0.06);">
+                <input type="checkbox" id="queueCheck_${i}" checked style="width:18px; height:18px; accent-color:var(--success); cursor:pointer; flex-shrink:0;">
+                <div style="flex:1;">
+                    <div style="font-size:0.88rem; font-weight:700;">${emoji} ${p.pick} <span style="opacity:0.55; font-weight:400;">(${p.odds || '-110'})</span></div>
+                    <div style="font-size:0.72rem; opacity:0.55; margin-top:2px;">${p.league} · ${p.matchup}${unitLabel}</div>
+                </div>
+                <span style="font-size:0.65rem; font-weight:800; color:${tierColor}; white-space:nowrap;">${p.tier}</span>
+            </label>`;
+        }).join('');
+    }
+
+    function queueMode(mode) {
+        const btnAll = document.getElementById('queueSendAll');
+        const btnSel = document.getElementById('queueSelect');
+        const checkList = document.getElementById('queueCheckList');
+        const confirmBtn = document.getElementById('queueConfirmBtn');
+        document.getElementById('queueSuccess').style.display = 'none';
+
+        if (mode === 'all') {
+            // Highlight Send All, dim Select
+            btnAll.style.border = '2px solid var(--success)';
+            btnAll.style.background = 'rgba(0,255,136,0.2)';
+            btnAll.style.color = 'var(--success)';
+            btnSel.style.border = '2px solid var(--border)';
+            btnSel.style.background = 'var(--card)';
+            btnSel.style.color = 'rgba(255,255,255,0.4)';
+            // Ensure all checkboxes checked, hide list
+            checkList.style.display = 'none';
+            for (let i = 0; i < currentAllPicks.length; i++) {
+                const cb = document.getElementById(`queueCheck_${i}`);
+                if (cb) cb.checked = true;
+            }
+            confirmBtn.style.display = currentAllPicks.length > 0 ? 'block' : 'none';
+        } else {
+            // Highlight Select, dim Send All
+            btnSel.style.border = '2px solid var(--success)';
+            btnSel.style.background = 'rgba(0,255,136,0.12)';
+            btnSel.style.color = 'var(--success)';
+            btnAll.style.border = '2px solid var(--border)';
+            btnAll.style.background = 'var(--card)';
+            btnAll.style.color = 'rgba(255,255,255,0.4)';
+            // Show checkbox list
+            checkList.style.display = 'block';
+            confirmBtn.style.display = currentAllPicks.length > 0 ? 'block' : 'none';
+        }
+    }
+
+    async function sendToQueue() {
+        const date = document.getElementById('engineDate').value;
+        const confirmBtn = document.getElementById('queueConfirmBtn');
+        const successBanner = document.getElementById('queueSuccess');
+
+        // Collect only checked picks
+        const selected = currentAllPicks.filter((p, i) => {
+            const cb = document.getElementById(`queueCheck_${i}`);
+            return cb ? cb.checked : true;
+        });
+
+        if (selected.length === 0) {
+            successBanner.style.background = 'rgba(255,68,68,0.12)';
+            successBanner.style.borderColor = 'rgba(255,68,68,0.3)';
+            successBanner.style.color = 'var(--danger)';
+            successBanner.textContent = '⚠️ No picks selected — check at least one pick to send.';
+            successBanner.style.display = 'block';
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Sending...';
+
+        try {
+            const res = await fetch('/api/queue-picks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: ADMIN_KEY, picks: selected, date })
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+
+            const result = await res.json();
+            successBanner.style.background = 'rgba(0,255,136,0.12)';
+            successBanner.style.borderColor = 'rgba(0,255,136,0.3)';
+            successBanner.style.color = 'var(--success)';
+            successBanner.textContent = `✅ ${result.queued} pick${result.queued !== 1 ? 's' : ''} sent to Admin Queue — ready to grade.`;
+            successBanner.style.display = 'block';
+            confirmBtn.style.display = 'none';
+        } catch (err) {
+            successBanner.style.background = 'rgba(255,68,68,0.12)';
+            successBanner.style.borderColor = 'rgba(255,68,68,0.3)';
+            successBanner.style.color = 'var(--danger)';
+            successBanner.textContent = `❌ Queue error: ${err.message}`;
+            successBanner.style.display = 'block';
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ CONFIRM — SEND TO QUEUE';
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorBanner');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+</body>
+</html>
