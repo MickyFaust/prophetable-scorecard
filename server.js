@@ -371,7 +371,7 @@ function parseOddsNum(oddsStr) {
 }
 function applyJuiceCap(picks, cap = -125) {
     return picks.map(pick => {
-        if (pick.tier === 'CUT') return pick;
+        if (pick.cut_reason) return pick; // already juice-capped — skip
         const odds = parseOddsNum(pick.odds);
         if (odds < cap) { // e.g. -156 < -125 → too juicy
             return { ...pick, tier: 'CUT', cut_reason: `Juice cap: ${pick.odds}` };
@@ -420,7 +420,8 @@ INTERNAL ANALYSIS INSTRUCTIONS (do not narrate — do all of this silently, then
    edge_pct = your estimated true win% minus implied_prob
    sport_confidence: NBA=1.0 | NCAAB=1.0 | MLB=0.85 | NFL=0.95 | NHL=0.90
    line_movement_factor: moved your way=1.15 | neutral=1.0 | moved against=0.85
-   UEM = (edge_pct/100) × sport_confidence × line_movement_factor × 10
+   bet_type_factor: Spread=1.0 | Total=1.0 | Moneyline=0.9 | Player Prop=0.75
+   UEM = (edge_pct/100) × sport_confidence × line_movement_factor × bet_type_factor × 10
    Skip any pick with odds worse than -125 or game unconfirmed.
 
 4. RANK by UEM descending and assign tiers:
