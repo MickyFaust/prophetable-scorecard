@@ -209,6 +209,13 @@
             <div id="picksGrid" class="picks-grid"></div>
         </div>
 
+        <!-- ── REPLACE PICKS BAR ── -->
+        <div id="replaceBar" style="display:none; margin-bottom:16px; text-align:center;">
+            <button onclick="runReplace()" style="background:linear-gradient(135deg,#ff6b35,#ff4444); color:#fff; border:none; border-radius:12px; padding:14px 32px; font-family:'Inter',sans-serif; font-weight:800; font-size:0.85rem; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; width:100%; transition:opacity 0.2s;">
+                🔄 REPLACE CHECKED PICKS
+            </button>
+        </div>
+
         <!-- ── SEND TO QUEUE ── -->
         <div style="background:rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.2); border-radius:16px; padding:22px; margin-bottom:24px;">
             <div style="font-size:0.7rem; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; color:var(--success); margin-bottom:6px;">● Send to Admin Queue</div>
@@ -282,6 +289,7 @@
 
     let currentMode = 'morning';
     let currentAllPicks = [];
+    let lastRunPayload  = null;  // saved for replace reruns
 
     function setMode(mode) {
         currentMode = mode;
@@ -382,7 +390,7 @@
     // ── Engine run ───────────────────────────────────────────────
     function setStatus(msg) { document.getElementById('statusText').textContent = msg; }
 
-    async function runEngine() {
+    async function runEngine(opts = {}) {
         const rawPicks = document.getElementById('rawPicks').value.trim();
         const date     = document.getElementById('engineDate').value;
 
@@ -398,20 +406,33 @@
         document.getElementById('btnSpinner').style.display = 'block';
         document.getElementById('statusLog').style.display = 'block';
         document.getElementById('results-section').style.display = 'none';
+        document.getElementById('replaceBar').style.display = 'none';
 
-        setStatus(`Sending ${droppedImages.length > 0 ? droppedImages.length + ' screenshot(s)' : 'text picks'} to The Prophet...`);
+        const isReplace = Array.isArray(opts.lockedPicks) && opts.lockedPicks.length > 0;
+        setStatus(isReplace
+            ? `Replacing ${opts.replaceCount} pick(s) — keeping ${opts.lockedPicks.length} locked...`
+            : `Sending ${droppedImages.length > 0 ? droppedImages.length + ' screenshot(s)' : 'text picks'} to The Prophet...`);
+
+        // Save payload so replace runs can reuse the same screenshots/date
+        lastRunPayload = { rawPicks, date, mode: currentMode, images: droppedImages };
 
         try {
+            const body = {
+                password: ADMIN_KEY,
+                rawPicks,
+                date,
+                mode: currentMode,
+                images: droppedImages.map(i => ({ base64: i.base64, mediaType: i.mediaType }))
+            };
+            if (isReplace) {
+                body.lockedPicks   = opts.lockedPicks;
+                body.replaceCount  = opts.replaceCount;
+            }
+
             const res = await fetch('/api/engine-run', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    password: ADMIN_KEY,
-                    rawPicks,
-                    date,
-                    mode: currentMode,
-                    images: droppedImages.map(i => ({ base64: i.base64, mediaType: i.mediaType }))
-                })
+                body: JSON.stringify(body)
             });
 
             if (!res.ok) { throw new Error(await res.text()); }
@@ -482,6 +503,13 @@
             const emoji = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
             const factors = Array.isArray(p.verified_factors) ? p.verified_factors.slice(0,2).join(' · ')
                           : Array.isArray(p.key_factors) ? p.key_factors.slice(0,2).join(' · ') : '';
+            const isCut = p.tier === 'CUT';
+            const swapBox = isCut ? '' : `
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;margin-left:4px;">
+                    <input type="checkbox" id="swap_${i}" class="swap-check" onchange="updateReplaceBtn()"
+                           style="width:16px;height:16px;accent-color:#ff6b35;cursor:pointer;">
+                    <span style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.5px;">SWAP</span>
+                </div>`;
             return `
             <div class="pick-row ${tierClass}">
                 <div class="pick-rank" style="color:${rankColor}">${i+1}</div>
@@ -494,6 +522,7 @@
                     <div class="uem">${p.uem_score?.toFixed(2)||'—'}</div>
                     <div class="edge">${p.edge_pct ? p.edge_pct+'%' : ''} edge</div>
                 </div>
+                ${swapBox}
             </div>`;
         }).join('');
 
@@ -504,6 +533,23 @@
         document.getElementById('combinedReport').textContent = elite + '\n\n' + max;
         document.getElementById('results-section').style.display = 'block';
         document.getElementById('results-section').scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+
+    function updateReplaceBtn() {
+        const anyChecked = document.querySelectorAll('.swap-check:checked').length > 0;
+        document.getElementById('replaceBar').style.display = anyChecked ? 'block' : 'none';
+    }
+
+    function runReplace() {
+        if (!lastRunPayload || currentAllPicks.length === 0) return;
+        // Locked = non-CUT picks where SWAP is NOT checked
+        const lockedPicks = currentAllPicks.filter((p, i) => {
+            const cb = document.getElementById(`swap_${i}`);
+            return cb && !cb.checked;
+        });
+        const replaceCount = currentAllPicks.length - lockedPicks.length;
+        if (replaceCount === 0) return;
+        runEngine({ lockedPicks, replaceCount });
     }
 
     function copyReport(id, btn) {

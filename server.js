@@ -352,8 +352,10 @@ function findBestOddsForPick(pick, rawGames) {
 }
 
 app.post('/api/engine-run', async (req, res) => {
-    const { password, rawPicks, date, images, mode } = req.body;
-    const isProp = mode === 'prop';
+    const { password, rawPicks, date, images, mode, lockedPicks, replaceCount } = req.body;
+    const isProp    = mode === 'prop';
+    const isReplace = Array.isArray(lockedPicks) && lockedPicks.length > 0;
+    const slotsNeeded = isReplace ? (replaceCount || 1) : (isProp ? 2 : 4);
     if (password !== PASSWORD) return res.status(401).send('Unauthorized');
     if (!ANTHROPIC_API_KEY) return res.status(500).send('API Key missing');
     const hasImages = images && images.length > 0;
@@ -367,9 +369,16 @@ app.post('/api/engine-run', async (req, res) => {
     // ── PASS 1: Extract + Score + Select ─────────────────────────────────────
     const selectionSystemPrompt = `You are The Prophet — a quantitative sports betting analyst API endpoint. Your ONLY output is a single valid JSON object. You never write prose, markdown, explanations, or any text outside the JSON braces. All analysis happens internally. Your response begins with { and ends with }.`;
 
+    const lockedSection = isReplace ? `
+LOCKED PICKS (already confirmed — do NOT include these in your new picks, they are staying in the report):
+${lockedPicks.map((p, i) => `${i+1}. ${p.pick} — ${p.matchup} (${p.odds || ''})`).join('\n')}
+
+Find exactly ${slotsNeeded} replacement pick(s) from the remaining picks in the screenshots. Do not re-select any locked pick above.
+` : '';
+
     const selectionPrompt = `Date: ${dayLabel}
 ${hasImages ? `Input: ${images.length} sportsbook screenshot(s).` : `Input: Text picks.`}${hasText ? `\n\nAdditional notes:\n${rawPicks}` : ''}
-
+${lockedSection}
 INTERNAL ANALYSIS INSTRUCTIONS (do not narrate — do all of this silently, then output JSON):
 
 1. EXTRACT every distinct pick from the screenshots/text. Count them for picks_analyzed. No duplicates.
@@ -387,7 +396,7 @@ INTERNAL ANALYSIS INSTRUCTIONS (do not narrate — do all of this silently, then
 4. RANK by UEM descending and assign tiers:
    ${isProp
      ? `Rank 1 → PROPHET ELITE | Rank 2 → MAX PROPHET | All others → CUT`
-     : `Rank 1-2 → PROPHET ELITE | Rank 3-4 → MAX PROPHET | All others → CUT`}
+     : `Rank 1-${slotsNeeded <= 2 ? slotsNeeded : 2} → PROPHET ELITE | Rank ${slotsNeeded <= 2 ? slotsNeeded+1 : 3}-${slotsNeeded} → MAX PROPHET | All others → CUT`}
 
 5. For PLAYER PROP picks include player_name and prop_market from these Odds API keys:
    NBA: player_points | player_rebounds | player_assists | player_steals | player_threes | player_blocks | player_turnovers | player_points_rebounds_assists | player_points_rebounds | player_points_assists | player_rebounds_assists | player_steals_blocks | player_first_basket
@@ -399,7 +408,7 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
 {
   "date": "${dayLabel}",
   "picks_analyzed": 0,
-  "picks_selected": ${isProp ? 2 : 4},
+  "picks_selected": ${slotsNeeded},
   "all_picks": [
     {
       "rank": 1,
@@ -469,9 +478,23 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
             cleanup(); return fail(`Engine could not parse picks — response preview: ${raw.substring(0, 400)}`);
         }
         const selResult = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
-        const allPicks  = selResult.all_picks || [];
+        let allPicks    = selResult.all_picks || [];
+
+        // If this is a replace run, merge locked picks + new picks, re-rank by UEM
+        if (isReplace && lockedPicks.length > 0) {
+            const newSelected = allPicks.filter(p => p.tier !== 'CUT');
+            const merged = [...lockedPicks, ...newSelected];
+            merged.sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
+            // Re-assign tiers based on combined rank
+            merged.forEach((p, i) => {
+                p.tier = i < 2 ? 'PROPHET ELITE' : 'MAX PROPHET';
+                p.rank = i + 1;
+            });
+            allPicks = merged;
+        }
+
         const selected  = allPicks.filter(p => p.tier !== 'CUT');
-        status(`Scored ${selResult.picks_analyzed || allPicks.length} picks — ${selected.length} made the cut. Fetching best odds...`);
+        status(`Scored ${selResult.picks_analyzed || allPicks.length} picks — ${selected.length} in report. Fetching best odds...`);
 
         // ── PASS 2: Odds API enrichment (selected picks only) ─────────────────
         const selectedPicks = selected;
