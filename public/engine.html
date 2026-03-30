@@ -287,9 +287,10 @@
     const ADMIN_KEY = '7663';
     const SPORT_EMOJIS = { NBA:'🏀', MLB:'⚾', NCAAB:'🏀', NFL:'🏈', NHL:'🏒', default:'🎯' };
 
-    let currentMode = 'morning';
-    let currentAllPicks = [];
-    let lastRunPayload  = null;  // saved for replace reruns
+    let currentMode         = 'morning';
+    let currentAllPicks     = [];  // non-CUT picks only
+    let currentAllPicksFull = [];  // ALL picks including CUT (for replace promotion)
+    let lastRunPayload      = null;
 
     function setMode(mode) {
         currentMode = mode;
@@ -408,12 +409,11 @@
         document.getElementById('results-section').style.display = 'none';
         document.getElementById('replaceBar').style.display = 'none';
 
-        const isReplace = Array.isArray(opts.lockedPicks) && opts.lockedPicks.length > 0;
-        setStatus(isReplace
-            ? `Replacing ${opts.replaceCount} pick(s) — keeping ${opts.lockedPicks.length} locked...`
+        const isOverride = Array.isArray(opts.picksOverride) && opts.picksOverride.length > 0;
+        setStatus(isOverride
+            ? `Promoting picks — fetching best odds & rewriting report...`
             : `Sending ${droppedImages.length > 0 ? droppedImages.length + ' screenshot(s)' : 'text picks'} to The Prophet...`);
 
-        // Save payload so replace runs can reuse the same screenshots/date
         lastRunPayload = { rawPicks, date, mode: currentMode, images: droppedImages };
 
         try {
@@ -424,9 +424,8 @@
                 mode: currentMode,
                 images: droppedImages.map(i => ({ base64: i.base64, mediaType: i.mediaType }))
             };
-            if (isReplace) {
-                body.lockedPicks   = opts.lockedPicks;
-                body.replaceCount  = opts.replaceCount;
+            if (isOverride) {
+                body.picksOverride = opts.picksOverride;
             }
 
             const res = await fetch('/api/engine-run', {
@@ -490,8 +489,9 @@
             document.getElementById('meta-top-uem').textContent = data.all_picks[0].uem_score?.toFixed(2) || '—';
         }
 
-        // Store non-CUT picks for the queue feature; reset queue UI
-        currentAllPicks = (data.all_picks || []).filter(p => p.tier !== 'CUT');
+        // Store picks for queue + replace features; reset queue UI
+        currentAllPicksFull = data.all_picks || [];
+        currentAllPicks     = currentAllPicksFull.filter(p => p.tier !== 'CUT');
         resetQueueUI();
         buildQueueCheckboxes(currentAllPicks, data.date);
 
@@ -541,15 +541,38 @@
     }
 
     function runReplace() {
-        if (!lastRunPayload || currentAllPicks.length === 0) return;
-        // Locked = non-CUT picks where SWAP is NOT checked
+        if (currentAllPicksFull.length === 0) return;
+
+        // Locked = non-CUT picks where SWAP checkbox is NOT checked (keep these)
         const lockedPicks = currentAllPicks.filter((p, i) => {
             const cb = document.getElementById(`swap_${i}`);
             return cb && !cb.checked;
         });
         const replaceCount = currentAllPicks.length - lockedPicks.length;
         if (replaceCount === 0) return;
-        runEngine({ lockedPicks, replaceCount });
+
+        // Pull next-best from CUT pool (already scored — sorted by UEM desc)
+        const cutPool = currentAllPicksFull
+            .filter(p => p.tier === 'CUT')
+            .sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
+
+        if (cutPool.length < replaceCount) {
+            showError(`Only ${cutPool.length} backup pick(s) available — need ${replaceCount}. Add more screenshots.`);
+            return;
+        }
+
+        const promoted = cutPool.slice(0, replaceCount);
+
+        // Merge locked + promoted, sort by UEM, re-assign tiers
+        const combined = [...lockedPicks, ...promoted];
+        combined.sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
+        combined.forEach((p, i) => {
+            p.tier = i < 2 ? 'PROPHET ELITE' : 'MAX PROPHET';
+            p.rank = i + 1;
+        });
+
+        // Skip Claude selection — send picks directly, just get Odds + report
+        runEngine({ picksOverride: combined });
     }
 
     function copyReport(id, btn) {

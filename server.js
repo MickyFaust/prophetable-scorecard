@@ -351,11 +351,28 @@ function findBestOddsForPick(pick, rawGames) {
     return       { best_line: `${bestLine > 0 ? '+' : ''}${bestLine}`, best_odds: oddsStr, best_book: bestBook };
 }
 
+// ── Juice cap server-side enforcement ────────────────────────────────────────
+function parseOddsNum(oddsStr) {
+    const n = parseInt((oddsStr || '').toString().replace(/[^-\d]/g, ''));
+    return isNaN(n) ? 0 : n;
+}
+function applyJuiceCap(picks, cap = -125) {
+    return picks.map(pick => {
+        if (pick.tier === 'CUT') return pick;
+        const odds = parseOddsNum(pick.odds);
+        if (odds < cap) { // e.g. -156 < -125 → too juicy
+            return { ...pick, tier: 'CUT', cut_reason: `Juice cap: ${pick.odds}` };
+        }
+        return pick;
+    });
+}
+
 app.post('/api/engine-run', async (req, res) => {
-    const { password, rawPicks, date, images, mode, lockedPicks, replaceCount } = req.body;
-    const isProp    = mode === 'prop';
-    const isReplace = Array.isArray(lockedPicks) && lockedPicks.length > 0;
-    const slotsNeeded = isReplace ? (replaceCount || 1) : (isProp ? 2 : 4);
+    const { password, rawPicks, date, images, mode, lockedPicks, replaceCount, picksOverride } = req.body;
+    const isProp       = mode === 'prop';
+    const isOverride   = Array.isArray(picksOverride) && picksOverride.length > 0;
+    const isReplace    = !isOverride && Array.isArray(lockedPicks) && lockedPicks.length > 0;
+    const slotsNeeded  = isReplace ? (replaceCount || 1) : (isProp ? 2 : 4);
     if (password !== PASSWORD) return res.status(401).send('Unauthorized');
     if (!ANTHROPIC_API_KEY) return res.status(500).send('API Key missing');
     const hasImages = images && images.length > 0;
@@ -452,49 +469,50 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
     const cleanup   = () => clearInterval(heartbeat);
 
     try {
-        // ── CALL 1: Selection ─────────────────────────────────────────────────
-        status(`Analyzing ${hasImages ? images.length + ' screenshot(s)' : 'text picks'} — running web searches on every pick...`);
+        let allPicks     = [];
+        let picksAnalyzed = 0;
 
-        const sel = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-5',
-                max_tokens: 8192,
-                system: selectionSystemPrompt,
-                tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }],
-                messages: [{ role: 'user', content: msgContent }]
-            })
-        });
-        const selData = await sel.json();
-        if (!sel.ok) { cleanup(); return fail(`Anthropic Error (selection): ${selData.error?.message}`); }
-        const selText = selData.content.find(b => b.type === 'text');
-        if (!selText) { cleanup(); return fail('No selection response from AI'); }
+        if (isOverride) {
+            // ── REPLACE PATH: picks already selected by client — skip Claude Pass 1 ──
+            status('Picks locked — fetching best odds for promoted picks...');
+            allPicks      = picksOverride;
+            picksAnalyzed = picksOverride.length;
+        } else {
+            // ── CALL 1: Selection ──────────────────────────────────────────────────
+            status(`Analyzing ${hasImages ? images.length + ' screenshot(s)' : 'text picks'} — running web searches on every pick...`);
 
-        let raw = selText.text;
-        const jsonStart = raw.indexOf('{');
-        const jsonEnd   = raw.lastIndexOf('}');
-        if (jsonStart === -1 || jsonEnd === -1) {
-            cleanup(); return fail(`Engine could not parse picks — response preview: ${raw.substring(0, 400)}`);
-        }
-        const selResult = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
-        let allPicks    = selResult.all_picks || [];
-
-        // If this is a replace run, merge locked picks + new picks, re-rank by UEM
-        if (isReplace && lockedPicks.length > 0) {
-            const newSelected = allPicks.filter(p => p.tier !== 'CUT');
-            const merged = [...lockedPicks, ...newSelected];
-            merged.sort((a, b) => (b.uem_score || 0) - (a.uem_score || 0));
-            // Re-assign tiers based on combined rank
-            merged.forEach((p, i) => {
-                p.tier = i < 2 ? 'PROPHET ELITE' : 'MAX PROPHET';
-                p.rank = i + 1;
+            const sel = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-5',
+                    max_tokens: 8192,
+                    system: selectionSystemPrompt,
+                    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 20 }],
+                    messages: [{ role: 'user', content: msgContent }]
+                })
             });
-            allPicks = merged;
+            const selData = await sel.json();
+            if (!sel.ok) { cleanup(); return fail(`Anthropic Error (selection): ${selData.error?.message}`); }
+            const selText = selData.content.find(b => b.type === 'text');
+            if (!selText) { cleanup(); return fail('No selection response from AI'); }
+
+            let raw = selText.text;
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd   = raw.lastIndexOf('}');
+            if (jsonStart === -1 || jsonEnd === -1) {
+                cleanup(); return fail(`Engine could not parse picks — response preview: ${raw.substring(0, 400)}`);
+            }
+            const selResult = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
+            allPicks      = selResult.all_picks || [];
+            picksAnalyzed = selResult.picks_analyzed || allPicks.length;
+
+            // ── Server-side juice cap (-125 hard limit — Claude ignores this sometimes) ──
+            allPicks = applyJuiceCap(allPicks);
         }
 
         const selected  = allPicks.filter(p => p.tier !== 'CUT');
-        status(`Scored ${selResult.picks_analyzed || allPicks.length} picks — ${selected.length} in report. Fetching best odds...`);
+        status(`${isOverride ? 'Replaced' : 'Scored'} ${picksAnalyzed} picks — ${selected.length} in report. Fetching best odds...`);
 
         // ── PASS 2: Odds API enrichment (selected picks only) ─────────────────
         const selectedPicks = selected;
@@ -623,9 +641,9 @@ Respond ONLY in this JSON — no markdown:
 
         cleanup();
         done({
-            date:           selResult.date,
-            picks_analyzed: selResult.picks_analyzed,
-            picks_selected: selResult.picks_selected,
+            date:           dayLabel,
+            picks_analyzed: picksAnalyzed,
+            picks_selected: selected.length,
             all_picks:      allPicks,
             report_elite:   rptResult.report_elite || '',
             report_max:     rptResult.report_max   || '',
