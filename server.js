@@ -600,53 +600,64 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
         }));
 
         // ── PASS 3: Report generation with verified best odds ─────────────────
-        const picksForReport = allPicks.filter(p => p.tier !== 'CUT').map(p => {
+        const elitePicks = allPicks.filter(p => p.tier === 'PROPHET ELITE');
+        const maxPicks   = allPicks.filter(p => p.tier === 'MAX PROPHET');
+
+        function formatPickBlock(p) {
             const oddsLine = p.best_odds && p.best_book
-                ? `${p.best_line || p.pick} ${p.best_odds} (best available @ ${p.best_book})`
-                : `${p.pick} ${p.odds} (odds from screenshot — verify before placing)`;
-            return `Rank ${p.rank} | ${p.tier} | ${p.league} | ${p.matchup} | ${p.tipoff || 'TBD'}
+                ? `${p.best_line || p.pick} ${p.best_odds} @ ${p.best_book}`
+                : `${p.pick} ${p.odds} (verify line before placing)`;
+            return `${p.league} | ${p.matchup} | ${p.tipoff || 'TBD'}
 PICK: ${oddsLine}
-UEM: ${p.uem_score} | Edge: ${p.edge_pct}% | Units: ${p.units}
+UEM: ${p.uem_score} | Edge: ${p.edge_pct}% | Units: ${p.units || '1.0u'}
 Notes: ${(p.verified_factors || []).join('; ')}`;
-        }).join('\n\n');
+        }
+
+        const eliteSection = elitePicks.length > 0
+            ? `PROPHET ELITE PICKS (go in report_elite ONLY):\n${elitePicks.map(formatPickBlock).join('\n\n')}`
+            : `PROPHET ELITE PICKS: NONE — set report_elite to ""`;
+        const maxSection = maxPicks.length > 0
+            ? `MAX PROPHET PICKS (go in report_max ONLY):\n${maxPicks.map(formatPickBlock).join('\n\n')}`
+            : `MAX PROPHET PICKS: NONE — set report_max to ""`;
 
         const reportPrompt = `You are The Prophet — Chief Quantitative Analyst for Prophetable. Protocol 6.0.
 
-Write the final subscriber report for ${dayLabel} using the verified picks and odds below.
-These odds have been confirmed via the Odds API — use them exactly as given.
+Write the final subscriber report for ${dayLabel}. Each pick goes in ONE section only — never duplicate a pick across sections.
 
-VERIFIED PICKS WITH BEST AVAILABLE ODDS:
-${picksForReport}
+${eliteSection}
 
-Generate one report block per pick using EXACTLY this template (no additions, no reordering):
+${maxSection}
 
-PROPHET ELITE format:
+REPORT BLOCK TEMPLATE (one block per pick, use this format exactly):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[${dayLabel}] - ${isProp ? 'PROPHET ELITE PROP DROP' : 'PROPHET ELITE REPORT'}
+[${dayLabel}] - [PROPHET ELITE REPORT or MAX PROPHET REPORT]
 
-[LEAGUE] | [Away Team] @ [Home Team]
+[LEAGUE] | [Away] @ [Home]
 🕒 Tip-off: [time]
-✅ PICK: [pick] [best odds] @ [best book]
-💰 RECOMMENDED PLAY: 1.5 Units 🌊 (BIG SPLASH)
+✅ PICK: [pick line] [odds] @ [book]
+💰 RECOMMENDED PLAY: [units from pick data] ([unit name])
 
 📊 THE QUANTITATIVE METRICS
 Projection: [modeled value]
 Model Edge (UEM): [X.XX%]
-Market Delta: [difference between projection and listed line]
+Market Delta: [difference]
 
-The Math: The [odds] market price carries an implied probability of [X.X%]. The raw delta of [value] against the listed line normalizes to a [X.XX%] UEM.
+The Math: The [odds] market price carries an implied probability of [X%]. The raw delta of [value] against the listed line normalizes to a [X.XX%] UEM.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-MAX PROPHET format: identical but header says ${isProp ? 'MAX PROPHET PROP DROP' : 'MAX PROPHET REPORT'} and play line says 💰 RECOMMENDED PLAY: 1.0 Units 🔍 (STANDARD STRIKE)
+UNIT SCALE (use the units field from pick data to select):
+2.0u → 🐋 WHALE | 1.75u → 🦈 SHARK | 1.5u → 🌊 BIG SPLASH | 1.25u → 💧 BUMP | 1.0u → 🔍 STANDARD STRIKE
 
 ABSOLUTE RULES:
+❌ NEVER put the same pick in both report_elite and report_max
 ❌ NEVER write hit rates, historical records, DTM%, or fabricated stats
-✅ Always show the sportsbook name on the PICK line (e.g. "Over 223.5 -110 @ FanDuel")
-✅ If no best_book was found for a pick, note "(verify line before placing)"
+✅ Always show the sportsbook name on the PICK line
+✅ If no book found, write "(verify line before placing)"
+✅ If a section has no picks, its value must be ""
 
 ${isProp
-  ? `report_elite = single PROPHET ELITE block. report_max = single MAX PROPHET block.`
-  : `report_elite = both PROPHET ELITE blocks separated by blank line. report_max = both MAX PROPHET blocks separated by blank line.`}
+  ? `report_elite = PROPHET ELITE PROP DROP block(s). report_max = MAX PROPHET PROP DROP block(s).`
+  : `report_elite = all PROPHET ELITE blocks. report_max = all MAX PROPHET blocks.`}
 
 Respond ONLY in this JSON — no markdown:
 {
