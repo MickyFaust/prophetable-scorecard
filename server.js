@@ -11,6 +11,17 @@ const PENDING_PATH = '/app/data/pending.json';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ODDS_API_KEY      = process.env.ODDS_API_KEY || '236431741a7870cbcbfdbc2540a45eea';
 
+// Approved sportsbooks — only these appear in reports
+const APPROVED_BOOKS = new Set([
+    'draftkings', 'fanduel', 'betmgm', 'caesars', 'espnbet',
+    'pointsbet', 'bet365', 'barstool', 'wynnbet', 'betrivers',
+    'unibet', 'superbook', 'hardrock', 'fanatics', 'fliff'
+]);
+
+function isApprovedBook(bookKey) {
+    return APPROVED_BOOKS.has((bookKey || '').toLowerCase().replace(/[\s.]/g, ''));
+}
+
 const ODDS_SPORT_KEYS = {
     NBA:   'basketball_nba',
     NCAAB: 'basketball_ncaab',
@@ -74,6 +85,7 @@ function findBestPropOdds(propData, playerName, side) {
     let bestLine = null, bestOdds = null, bestBook = null;
 
     for (const book of propData.bookmakers) {
+        if (!isApprovedBook(book.key) && !isApprovedBook(book.title)) continue;
         const bLabel = book.title || book.key;
         for (const market of (book.markets || [])) {
             for (const outcome of (market.outcomes || [])) {
@@ -307,6 +319,7 @@ function findBestOddsForPick(pick, rawGames) {
     let bestLine = null, bestOdds = null, bestBook = null;
 
     for (const book of (game.bookmakers || [])) {
+        if (!isApprovedBook(book.key) && !isApprovedBook(book.title)) continue;
         const bLabel = book.title || book.key;
         for (const market of (book.markets || [])) {
             for (const outcome of (market.outcomes || [])) {
@@ -414,6 +427,7 @@ INTERNAL ANALYSIS INSTRUCTIONS (do not narrate — do all of this silently, then
    ${isProp
      ? `Rank 1 → PROPHET ELITE | Rank 2 → MAX PROPHET | All others → CUT`
      : `Rank 1-${slotsNeeded <= 2 ? slotsNeeded : 2} → PROPHET ELITE | Rank ${slotsNeeded <= 2 ? slotsNeeded+1 : 3}-${slotsNeeded} → MAX PROPHET | All others → CUT`}
+   CRITICAL: Include EVERY analyzed pick in all_picks — not just the top ${slotsNeeded}. Ranks ${slotsNeeded + 1}+ get tier: "CUT". This is required for the backup pool.
 
 5. For PLAYER PROP picks include player_name and prop_market from these Odds API keys:
    NBA: player_points | player_rebounds | player_assists | player_steals | player_threes | player_blocks | player_turnovers | player_points_rebounds_assists | player_points_rebounds | player_points_assists | player_rebounds_assists | player_steals_blocks | player_first_basket

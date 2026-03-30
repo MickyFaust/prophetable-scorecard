@@ -495,36 +495,55 @@
         resetQueueUI();
         buildQueueCheckboxes(currentAllPicks, data.date);
 
-        const picks = data.all_picks || [];
-        document.getElementById('picksGrid').innerHTML = picks.map((p, i) => {
-            const tierClass  = p.tier === 'PROPHET ELITE' ? 'tier-elite' : p.tier === 'MAX PROPHET' ? 'tier-max' : 'tier-cut';
-            const badgeClass = p.tier === 'PROPHET ELITE' ? 'badge-elite' : p.tier === 'MAX PROPHET' ? 'badge-max' : 'badge-cut';
-            const rankColor  = i < 2 ? 'var(--accent)' : i < 4 ? 'var(--purple)' : 'rgba(255,255,255,0.2)';
-            const emoji = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
+        const allPicksData = data.all_picks || [];
+        const selectedPicks = allPicksData.filter(p => p.tier !== 'CUT');
+        const cutPicks      = allPicksData.filter(p => p.tier === 'CUT');
+
+        function buildPickRow(p, displayRank, swapIdx) {
+            const tierClass  = p.tier === 'PROPHET ELITE' ? 'tier-elite' : 'tier-max';
+            const badgeClass = p.tier === 'PROPHET ELITE' ? 'badge-elite' : 'badge-max';
+            const rankColor  = displayRank <= 2 ? 'var(--accent)' : 'var(--purple)';
+            const emoji   = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
             const factors = Array.isArray(p.verified_factors) ? p.verified_factors.slice(0,2).join(' · ')
                           : Array.isArray(p.key_factors) ? p.key_factors.slice(0,2).join(' · ') : '';
-            const isCut = p.tier === 'CUT';
-            const swapBox = isCut ? '' : `
-                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;margin-left:4px;">
-                    <input type="checkbox" id="swap_${i}" class="swap-check" onchange="updateReplaceBtn()"
-                           style="width:16px;height:16px;accent-color:#ff6b35;cursor:pointer;">
-                    <span style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.5px;">SWAP</span>
-                </div>`;
             return `
             <div class="pick-row ${tierClass}">
-                <div class="pick-rank" style="color:${rankColor}">${i+1}</div>
+                <div class="pick-rank" style="color:${rankColor}">${displayRank}</div>
                 <div class="pick-info">
                     <div class="pick-main">${emoji} ${p.pick} <span style="opacity:0.6;font-weight:400;">(${p.odds||'-110'})</span></div>
                     <div class="pick-sub">${p.league} · ${p.matchup}${factors ? ' · '+factors : ''}</div>
                 </div>
-                <span class="tier-badge ${badgeClass}">${p.tier||'CUT'}</span>
+                <span class="tier-badge ${badgeClass}">${p.tier}</span>
                 <div class="pick-score">
                     <div class="uem">${p.uem_score?.toFixed(2)||'—'}</div>
                     <div class="edge">${p.edge_pct ? p.edge_pct+'%' : ''} edge</div>
                 </div>
-                ${swapBox}
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;margin-left:4px;">
+                    <input type="checkbox" id="swap_${swapIdx}" class="swap-check" onchange="updateReplaceBtn()"
+                           style="width:16px;height:16px;accent-color:#ff6b35;cursor:pointer;">
+                    <span style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.5px;">SWAP</span>
+                </div>
             </div>`;
-        }).join('');
+        }
+
+        // Only show selected picks with SWAP boxes — clean 4-pick grid
+        document.getElementById('picksGrid').innerHTML =
+            selectedPicks.map((p, i) => buildPickRow(p, i + 1, i)).join('') +
+            // Disqualified section (collapsed, no SWAP boxes)
+            (cutPicks.length ? `
+            <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
+                <div style="font-size:0.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.3;margin-bottom:8px;">⛔ Disqualified (${cutPicks.length})</div>
+                ${cutPicks.map(p => {
+                    const emoji = SPORT_EMOJIS[p.league] || SPORT_EMOJIS.default;
+                    const reason = p.cut_reason ? ` — ${p.cut_reason}` : '';
+                    return `<div class="pick-row tier-cut" style="opacity:0.4;padding:8px 12px;">
+                        <div class="pick-info">
+                            <div class="pick-main" style="font-size:0.82rem;">${emoji} ${p.pick} <span style="opacity:0.5;">(${p.odds||''})</span></div>
+                            <div class="pick-sub" style="font-size:0.7rem;">${p.league} · ${p.matchup}${reason}</div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>` : '');
 
         const elite = data.report_elite || '';
         const max   = data.report_max   || '';
