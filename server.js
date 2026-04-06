@@ -335,9 +335,12 @@ function findBestOddsForPick(pick, rawGames) {
                     if (better) { bestLine = point; bestOdds = price; bestBook = bLabel; }
 
                 } else if (isML && market.key === 'h2h') {
-                    // Match pick team to outcome name
-                    const pickTeamWord = normTeam(pickStr.replace(/\bml\b|\bmoneyline\b/gi, '')).split(' ').pop();
-                    if (!normTeam(outcome.name).includes(pickTeamWord)) continue;
+                    // Strip ml/moneyline AND odds numbers before extracting team word
+                    const pickTeamWord = normTeam(pickStr
+                        .replace(/\bml\b|\bmoneyline\b/gi, '')
+                        .replace(/[+-]?\d{2,}/g, ''))
+                        .split(' ').filter(w => w.length > 1).pop();
+                    if (!pickTeamWord || !normTeam(outcome.name).includes(pickTeamWord)) continue;
                     if (bestOdds === null || price > bestOdds) { bestOdds = price; bestBook = bLabel; }
 
                 } else if (!isTotal && !isML && market.key === 'spreads') {
@@ -528,10 +531,7 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
             allPicks      = selResult.all_picks || [];
             picksAnalyzed = selResult.picks_analyzed || allPicks.length;
 
-            // ── Server-side juice cap (-125 hard limit — Claude ignores this sometimes) ──
-            allPicks = applyJuiceCap(allPicks);
-
-            // ── Auto-backfill: if juice cap cut selected picks, promote next-best from CUT pool ──
+            // ── Auto-backfill: juice cap runs AFTER Odds API enrichment — not here ──
             const target = isProp ? 2 : 4;
             const afterCap = allPicks.filter(p => p.tier !== 'CUT');
             if (afterCap.length < target) {
@@ -557,9 +557,8 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
         const selected  = allPicks.filter(p => p.tier !== 'CUT');
         status(`${isOverride ? 'Replaced' : 'Scored'} ${picksAnalyzed} picks — ${selected.length} in report. Fetching best odds...`);
 
-        // ── PASS 2: Odds API enrichment (selected picks only) ─────────────────
-        const selectedPicks = selected;
-        const sportsNeeded  = [...new Set(selectedPicks.map(p => p.league))];
+        // ── PASS 2: Odds API enrichment — all non-CUT picks, juice cap fires after ──
+        const sportsNeeded = [...new Set(allPicks.filter(p => p.tier !== 'CUT').map(p => p.league))];
 
         // Fetch raw game-line data for all sports needed (gives us event IDs too)
         const rawGamesCache = {};
@@ -603,6 +602,16 @@ OUTPUT — respond with exactly this JSON structure and nothing else:
                 }
             }
         }));
+
+        // ── JUICE CAP — after Odds API found best available line ──────────────
+        allPicks = allPicks.map(pick => {
+            if (pick.tier === 'CUT') return pick;
+            const effectiveOdds = pick.best_odds ? parseOddsNum(pick.best_odds) : extractOdds(pick).val;
+            if (effectiveOdds !== 0 && effectiveOdds < -125) {
+                return { ...pick, tier: 'CUT', cut_reason: `Juice cap: ${pick.best_odds || pick.odds}` };
+            }
+            return pick;
+        });
 
         // ── PASS 3: Report generation with verified best odds ─────────────────
         const elitePicks = allPicks.filter(p => p.tier === 'PROPHET ELITE');
