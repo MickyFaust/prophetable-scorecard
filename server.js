@@ -1,7 +1,28 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const app = express();
+const fs      = require('fs');
+const path    = require('path');
+const https   = require('https');
+const app     = express();
+
+// Firebase Admin — initialised lazily so missing credentials don't crash startup
+let _fbAdmin = null;
+function getFirebaseAdmin() {
+    if (_fbAdmin) return _fbAdmin;
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!raw) return null;
+    try {
+        const admin      = require('firebase-admin');
+        const credential = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+        if (!admin.apps.length) {
+            admin.initializeApp({ credential: admin.credential.cert(credential) });
+        }
+        _fbAdmin = admin;
+        return admin;
+    } catch (e) {
+        console.error('[FIREBASE ADMIN] Init failed:', e.message);
+        return null;
+    }
+}
 
 const PORT = process.env.PORT || 3000;
 const PASSWORD = '7663';
@@ -10,6 +31,7 @@ const PENDING_PATH = '/app/data/pending.json';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ODDS_API_KEY      = process.env.ODDS_API_KEY || '236431741a7870cbcbfdbc2540a45eea';
+const CONSOLE_URL       = process.env.CONSOLE_URL  || 'https://prophetable-production.up.railway.app';
 
 // Approved sportsbooks — only these appear in reports
 const APPROVED_BOOKS = new Set([
@@ -845,6 +867,141 @@ app.delete('/admin/delete-pending/:index', (req, res) => {
         }
     }
     res.status(404).send('Not found');
+});
+
+// --- THE SPIN — proxy to Prophet Engine ---
+app.post('/api/spin-run', async (req, res) => {
+    const { password, includeElite = true, includeMax = true } = req.body;
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const send      = (type, payload) => res.write(`data: ${JSON.stringify({ type, ...payload })}\n\n`);
+    const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 20000);
+    const cleanup   = () => clearInterval(heartbeat);
+
+    try {
+        send('status', { message: '🌀 The Spin is loading caches and fetching today\'s MLB schedule...' });
+
+        const spinRes = await fetch(`${CONSOLE_URL}/api/spin`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                password:      process.env.CONSOLE_PASSWORD || PASSWORD,
+                include_elite: includeElite,
+                include_max:   includeMax,
+            }),
+            signal: AbortSignal.timeout(200000),
+        });
+
+        const ct = spinRes.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            const raw = await spinRes.text();
+            throw new Error(`Engine HTTP ${spinRes.status} — non-JSON response: ${raw.substring(0, 300)}`);
+        }
+        const data = await spinRes.json();
+        cleanup();
+
+        if (data.debug) console.log('[Spin debug]\n' + data.debug);
+
+        if (!spinRes.ok || data.error) {
+            send('error', { message: data.error || 'Spin engine error — check Railway logs' });
+            return res.end();
+        }
+
+        if (!data.success) {
+            send('spin_complete', { success: false, message: data.error || 'No qualifying picks today' });
+            return res.end();
+        }
+
+        send('spin_complete', {
+            success:    true,
+            picks:      data.picks      || [],
+            elite_text: data.elite_text || '',
+            max_text:   data.max_text   || '',
+        });
+        res.end();
+
+    } catch (err) {
+        cleanup();
+        send('error', { message: err.message });
+        res.end();
+    }
+});
+
+// --- EDIT PENDING PICK ---
+app.put('/admin/edit-pending/:index', (req, res) => {
+    const { password, pick, juice, matchup, league, tier, unit_size, date } = req.body;
+    const index = parseInt(req.params.index);
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+    if (fs.existsSync(PENDING_PATH)) {
+        let data = JSON.parse(fs.readFileSync(PENDING_PATH));
+        const plays = data.pending_plays || [];
+        if (index >= 0 && index < plays.length) {
+            if (pick)      plays[index].pick      = pick;
+            if (juice)     plays[index].juice     = juice;
+            if (league)    plays[index].league    = league;
+            if (tier)      plays[index].tier      = tier;
+            if (unit_size) plays[index].unit_size = unit_size;
+            if (date)      plays[index].date      = date;
+            if (matchup) {
+                plays[index].matchup   = matchup;
+                const parts = matchup.split('@').map(s => s.trim());
+                plays[index].away_team = parts[0] || plays[index].away_team || '';
+                plays[index].home_team = parts[1] || plays[index].home_team || '';
+            }
+            plays[index]._locked = true;
+            data.pending_plays = plays;
+            fs.writeFileSync(PENDING_PATH, JSON.stringify(data, null, 2));
+            return res.status(200).send('Updated');
+        }
+    }
+    res.status(404).send('Not found');
+});
+
+// --- REPAIR PENDING DATA ---
+app.post('/admin/repair-pending', (req, res) => {
+    const { password } = req.body;
+    if (password !== PASSWORD) return res.status(401).send('Unauthorized');
+    const clean = { pending_plays: [] };
+    const dir = path.dirname(PENDING_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PENDING_PATH, JSON.stringify(clean, null, 2));
+    res.status(200).json({ ok: true, message: 'pending.json reset to empty' });
+});
+
+// --- FIREBASE PUSH NOTIFICATION TO ADMIN ---
+app.post('/api/notify-admin', async (req, res) => {
+    const { memberName, messageText, fcmToken } = req.body || {};
+    if (!fcmToken) return res.json({ ok: false, error: 'No admin FCM token provided' });
+
+    const admin = getFirebaseAdmin();
+    if (!admin) {
+        console.log('[NOTIFY] ⚠️  FIREBASE_SERVICE_ACCOUNT not set — skipping push');
+        return res.json({ ok: false, error: 'FIREBASE_SERVICE_ACCOUNT not configured' });
+    }
+
+    try {
+        await admin.messaging().send({
+            token: fcmToken,
+            notification: {
+                title: `💬 Message from ${memberName || 'a member'}`,
+                body:  (messageText || 'New message').slice(0, 100),
+            },
+            webpush: {
+                notification: { icon: '/icons/icon-192.png' },
+                fcmOptions:   { link: 'https://app.prophetable.tv/community' },
+            },
+        });
+        console.log(`[NOTIFY] ✅ Push sent to admin — from: ${memberName}`);
+        res.json({ ok: true });
+    } catch (err) {
+        console.log(`[NOTIFY] ❌ Push failed: ${err.message}`);
+        res.json({ ok: false, error: err.message });
+    }
 });
 
 app.listen(PORT, "0.0.0.0", () => { console.log('Syndicate Engine Active'); });
